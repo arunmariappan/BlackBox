@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block head %}<script src="/static-vendor/plotly.min.js"></script>{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>Overview</h1>
+  <form class="filters right" method="get">
+    <label>Profile <select name="profile">{% for p in profiles %}<option {% if p == profile %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+    <label>Window <select name="window">{% for w in ["1d", "7d", "30d", "90d"] %}<option {% if w == window %}selected{% endif %}>{{ w }}</option>{% endfor %}</select></label>
+    <button type="submit">Show</button>
+  </form>
+</div>
+<p class="muted">{{ data.runs }} completed {{ profile }} runs in the last {{ window }}.</p>
+{% if rates %}
+<div class="grid">
+{% for label, value in rates %}<div class="card"><div class="label">{{ label }}</div><div class="value">{{ "%.0f" | format(value * 100) }}%</div></div>{% endfor %}
+</div>
+{% endif %}
+{% for chart in charts %}<div class="card" style="margin-top:12px">{{ chart | safe }}</div>{% else %}<p class="empty">No runs in this window.</p>{% endfor %}
+{% endblock %}

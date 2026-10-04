@@ -24,7 +24,7 @@ def render(request: Request, name: str, **context: Any) -> HTMLResponse:
     return response
 
 
-RUN_FILTERS = ("profile", "ending", "source", "status")
+RUN_FILTERS = ("profile", "ending", "source", "status", "flag")
 
 
 async def _runs(request: Request) -> tuple[list[Any], dict[str, str]]:

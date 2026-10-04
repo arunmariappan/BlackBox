@@ -44,15 +44,17 @@ def make_templates() -> Jinja2Templates:
 
 
 def create_app(services: Services) -> FastAPI:
-    from blackbox.web import api, judging, pages, replay
+    from blackbox.web import api, judging, overview, pages, replay
 
     app = FastAPI(title="BlackBox", version=__version__, docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.state.services = services
     app.state.templates = make_templates()
     app.state.banner_providers = []
     app.state.run_panels = []
+    app.state.overview_hooks = []
     app.state.nav = [
         ("/runs", "Runs"),
+        ("/overview", "Overview"),
         ("/sessions", "Replays"),
         ("/judges", "Judges"),
         ("/label", "Label"),
@@ -62,6 +64,7 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(api.router)
     app.include_router(replay.router)
     app.include_router(judging.router)
+    app.include_router(overview.router)
     app.include_router(pages.router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 

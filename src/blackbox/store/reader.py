@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from blackbox.store.models import Exchange, Label, RecordedValue, Run, Score, Session, Span, Step
@@ -36,10 +36,18 @@ class StoreReader:
         ending: str | None = None,
         source: str | None = None,
         status: str | None = None,
+        flag: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> Sequence[Run]:
         query = select(Run).order_by(Run.started_ms.desc().nulls_last(), Run.id.desc())
+        if flag:
+            flagged = (
+                select(Score.run_id)
+                .where(Score.kind == "metric", Score.name == flag, func.json_extract(Score.details, "$.flag") == 1)
+                .scalar_subquery()
+            )
+            query = query.where(Run.id.in_(flagged))
         if profile:
             query = query.where(Run.profile == profile)
         if ending:

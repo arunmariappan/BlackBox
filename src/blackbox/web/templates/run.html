@@ -68,6 +68,23 @@
 </div>
 {% endfor %}
 {% endif %}
+{% set metric_scores = scores | selectattr("kind", "equalto", "metric") | list %}
+{% if metric_scores %}
+<h2>Metrics</h2>
+<div class="flex small">
+{% for m in metric_scores %}
+  <span class="badge {% if m.details.flag %}warn{% endif %}" title="{{ m.version }}">{{ m.name }}: {% if m.label and m.value is none %}{{ m.label }}{% else %}{{ m.value | num }}{% if m.label %} ({{ m.label }}){% endif %}{% endif %}
+  {% for idx in (m.details.steps or [])[:8] %}<a href="#step-{{ idx }}">#{{ idx }}</a>{% endfor %}</span>
+{% endfor %}
+</div>
+{% for m in metric_scores if m.details.flag %}
+<div class="small" style="margin-top:4px">⚑ <b>{{ m.name }}</b>
+  {% if m.details.pattern %}{{ m.details.pattern }} from step {{ m.details.first_step }}{% endif %}
+  {% for c in m.details.calls or [] %}<div>step {{ c.step }}: {{ c.reasons | join("; ") if c.reasons else c.reason }}</div>{% endfor %}
+  {% for policy, items in (m.details.policies or {}).items() %}<div>{{ policy }}: {{ items | join("; ") }}</div>{% endfor %}
+</div>
+{% endfor %}
+{% endif %}
 {% for panel in panels %}{{ panel | safe }}{% endfor %}
 
 <div class="tabs">

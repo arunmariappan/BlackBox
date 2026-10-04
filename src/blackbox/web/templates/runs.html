@@ -22,7 +22,12 @@
       {% for s in ["open", "complete", "failed_assembly"] %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
     </select>
   </label>
-  {% block extra_filters %}{% endblock %}
+  <label>Flag
+    <select name="flag">
+      <option value="">any</option>
+      {% for f, text in [("loop", "loop"), ("wrong_tool", "wrong tool"), ("unrecovered_errors", "unrecovered error"), ("policy_violations", "policy violation"), ("citations_valid", "bad citation"), ("scope_mismatch", "scope mismatch")] %}<option value="{{ f }}" {% if filters.flag == f %}selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+  </label>
 </form>
 <table>
   <thead>
