@@ -42,8 +42,16 @@
 {% if judge_scores or checker_scores %}
 <h2>Verdicts</h2>
 {% for score in checker_scores %}
-<div class="card"><div class="flex"><b>checker</b> <span class="badge {{ 'ok' if score.label == 'pass' else 'bad' }}">{{ score.label }}</span></div>
-  {% for check in score.details.get("failed", []) %}<div class="small">✗ {{ check }}</div>{% endfor %}</div>
+<div class="card"><div class="flex"><b>checker</b> <span class="badge {{ 'ok' if score.label == 'pass' else 'bad' }}">{{ score.label }}</span>
+  {% if score.details.task %}<span class="small muted">task {{ score.details.task }} · sandbox {{ score.details.sandbox }}</span>{% endif %}</div>
+  {% for check in score.details.get("failed", []) %}<div class="small">✗ {{ check }}</div>{% endfor %}
+  {% if score.details.actions %}
+  <details><summary class="small">Action log ({{ score.details.actions | length }})</summary>
+  <table class="small"><thead><tr><th>#</th><th>At</th><th>Action</th><th>Arguments</th><th>OK</th></tr></thead><tbody>
+  {% for a in score.details.actions %}<tr><td>{{ a.seq }}</td><td>{{ a.at }}</td><td>{{ a.action }}</td><td><code>{{ a.args | tojson }}</code></td><td>{{ "yes" if a.ok else "no" }}</td></tr>{% endfor %}
+  </tbody></table></details>
+  {% endif %}
+</div>
 {% endfor %}
 {% for score in judge_scores %}
 {% set is_trusted = score.version in trusted.get(score.name, []) %}

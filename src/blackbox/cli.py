@@ -155,20 +155,31 @@ def run_command(
     dataset: Annotated[Path | None, typer.Option("--dataset", help="Run every reviewed question in a file.")] = None,
     limit: Annotated[int | None, typer.Option("--limit", help="With --dataset: at most N questions.")] = None,
     yes: Annotated[bool, typer.Option("--yes", help="Skip the confirmation for long GPU batches.")] = False,
+    task: Annotated[str | None, typer.Option("--task", help="OpsDesk: the task to run.")] = None,
+    mode: Annotated[str | None, typer.Option("--mode", help="OpsDesk: seeded or chaotic.")] = None,
+    all_tasks: Annotated[bool, typer.Option("--all-tasks", help="OpsDesk: every task in turn.")] = False,
+    repeats: Annotated[int, typer.Option("--repeats", help="With --all-tasks: runs per task.")] = 1,
     wait: Annotated[bool, typer.Option("--wait/--no-wait", help="Wait for the run to complete.")] = True,
 ) -> None:
-    """Start a recorded run of an agent with a traceparent BlackBox chose (or a whole question set)."""
+    """Start a recorded run of an agent with a traceparent BlackBox chose (or a whole question set or task list)."""
     options: dict[str, object] = {}
     if top_k is not None:
         options["top_k"] = top_k
     if model is not None:
         options["model"] = model
+    if mode is not None:
+        options["mode"] = mode
     if dataset is not None:
         _run_dataset(profile, dataset, options, limit=limit, yes=yes)
         return
-    if text is None:
-        raise typer.BadParameter("give an input, or --dataset FILE")
-    started = api_request("POST", "/api/runs", json={"profile": profile, "input": text, "options": options})
+    if all_tasks:
+        _run_all_tasks(profile, options, repeats=repeats, limit=limit, yes=yes)
+        return
+    if task is not None:
+        options["task"] = task
+    if text is None and task is None:
+        raise typer.BadParameter("give an input, --task, --all-tasks or --dataset FILE")
+    started = api_request("POST", "/api/runs", json={"profile": profile, "input": text or "", "options": options})
     assert isinstance(started, dict)
     console.print(f"run [bold]{started['run_id']}[/] started: {started['url']}")
     if wait:
@@ -194,6 +205,42 @@ def _wait_for_run(run_id: str, timeout_s: float = 1800) -> dict[str, object] | N
 
 
 GPU_CONFIRM_RUNS = 30
+
+
+def _run_all_tasks(profile: str, options: dict[str, object], *, repeats: int, limit: int | None, yes: bool) -> None:
+    """Run every OpsDesk task `repeats` times, one run at a time."""
+    import httpx
+
+    env_url = str(settings().profiles.get(profile, {}).get("env_url", "http://127.0.0.1:8221"))
+    tasks = httpx.get(f"{env_url}/_tasks", timeout=10, trust_env=False).json()
+    plan = [task["id"] for task in tasks for _ in range(repeats)][: limit or None]
+    if len(plan) > GPU_CONFIRM_RUNS and not yes:
+        typer.confirm(
+            f"{len(plan)} runs use the GPU for a long time (this PC has shut down during long GPU runs). Go on?",
+            abort=True,
+        )
+    passed = 0
+    for i, task_id in enumerate(plan, start=1):
+        body = {"profile": profile, "input": "", "options": {**options, "task": task_id}, "tags": {"task": task_id}}
+        started = api_request("POST", "/api/runs", json=body)
+        assert isinstance(started, dict)
+        console.print(f"[{i}/{len(plan)}] {task_id}: run {started['run_id']}")
+        run = _wait_for_run(str(started["run_id"]))
+        if run is not None:
+            time_limit = 30.0
+            import time
+
+            deadline = time.monotonic() + time_limit  # the checker runs just after completion
+            while time.monotonic() < deadline:
+                detail = api_request("GET", f"/api/runs/{started['run_id']}")
+                assert isinstance(detail, dict)
+                checker = [s for s in detail["scores"] if s["kind"] == "checker"]
+                if checker:
+                    passed += checker[0]["label"] == "pass"
+                    console.print(f"  checker: {checker[0]['label']}")
+                    break
+                time.sleep(0.5)
+    console.print(f"{passed}/{len(plan)} runs passed the checker")
 
 
 def _run_dataset(profile: str, path: Path, options: dict[str, object], *, limit: int | None, yes: bool) -> None:

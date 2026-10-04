@@ -70,6 +70,18 @@
   </tbody>
 </table>
 {% endif %}
+{% if report.sandbox %}
+<h2>Stateful replay</h2>
+<p class="small">Sandbox <code>{{ report.sandbox }}</code> · {{ report.synced | length }} state-changing calls sync-forwarded</p>
+{% if report.aliases %}
+<table><thead><tr><th>Id on the tape</th><th>Id in the session's sandbox</th></tr></thead><tbody>
+{% for tape, live in report.aliases.items() %}<tr><td><code>{{ tape }}</code></td><td><code>{{ live }}</code></td></tr>{% endfor %}
+</tbody></table>
+{% else %}<p class="muted small">No identifiers needed aliasing.</p>{% endif %}
+{% endif %}
+{% if report.value_divergences %}
+<p><span class="badge warn">The agent drew {{ report.value_divergences | length }} clock or random values the recording didn't have</span></p>
+{% endif %}
 {% if report.judges %}
 <h2>Judges</h2>
 <table>
