@@ -23,6 +23,7 @@ class FakeUpstream:
     calls: list[dict[str, Any]] = field(default_factory=list)
     release: asyncio.Event = field(default_factory=asyncio.Event)
     chunks: int = 50
+    chunk_delay: float = 0.0
     server: QuietServer | None = None
     task: asyncio.Task[None] | None = None
     port: int = 0
@@ -79,7 +80,7 @@ class FakeUpstream:
                         ).encode()
                         if i == 0:
                             await self.release.wait()
-                        await asyncio.sleep(0)
+                        await asyncio.sleep(self.chunk_delay)
                     yield (json.dumps({**final, "message": {"role": "assistant", "content": ""}}) + "\n").encode()
 
                 return StreamingResponse(stream(), media_type="application/x-ndjson")
