@@ -96,6 +96,19 @@ async def build_report(
         "endings": {"source": source.ending, "replay": replay.ending},
         "exact": exact,
     }
+    if session.state.get("sandbox"):
+        report["sandbox"] = session.state["sandbox"]
+        report["aliases"] = session.state.get("aliases", {})
+        report["synced"] = session.state.get("synced", [])
+    divergences = [
+        event.get("attributes", {})
+        for span in rep.spans
+        for event in span.events
+        if event.get("name") == "blackbox.value_divergence"
+    ]
+    if divergences:
+        report["value_divergences"] = divergences
+        report["exact"] = False
     for hook in services.report_hooks:
         report.update(await hook(services, session, src, rep))
     return report
