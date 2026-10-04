@@ -31,6 +31,9 @@ class QuietServer(uvicorn.Server):
 def bind(host: str, port: int) -> socket.socket:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # Accepted connections inherit this. Without it, a response written in two parts (headers, then body) on a
+    # kept-alive connection waits ~40 ms for the client's delayed ACK (Nagle), on every call through the proxy.
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     sock.bind((host, port))
     sock.listen(2048)
     sock.setblocking(False)
@@ -76,6 +79,11 @@ type StartHook = Callable[[Running], Awaitable[None]]
 START_HOOKS: list[StartHook] = []
 
 
+def _load_start_hooks() -> None:
+    """Import the modules that add start hooks (kept out of module import time to avoid import cycles)."""
+    import blackbox.proxy.manager  # noqa: F401
+
+
 async def start_blackbox(
     settings: Settings, *, profiles: ProfileRegistry | None = None, migrate: bool = True, hooks: bool = True
 ) -> Running:
@@ -87,6 +95,7 @@ async def start_blackbox(
         settings.server.public_url = settings.server.public_url or f"http://{settings.server.host}:{port}"
     running = Running(services, app, port, [("web", server, task)])
     if hooks:
+        _load_start_hooks()
         for hook in START_HOOKS:
             await hook(running)
     return running
