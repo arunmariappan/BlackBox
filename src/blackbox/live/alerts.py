@@ -96,7 +96,7 @@ class AlertEngine:
         now = self.clock()
         points = await load_points(self.services, profile)
         periods = await alert_periods(self.services, profile, now)
-        evaluations = [self._evaluate_signal(signal, periods) for signal in signals(points)]
+        evaluations = [self.evaluate_signal(signal, periods) for signal in signals(points)]
         activity = await cluster_activity(self.services, profile, now - int(live.new_mode.minutes * 60_000))
         mode = new_failure_mode(activity, now, live.new_mode)
         evaluations.append(Evaluation(NEW_FAILURE_MODE, mode.state, mode.as_dict()))
@@ -108,7 +108,7 @@ class AlertEngine:
         await self.refresh_banners()
         return transitions
 
-    def _evaluate_signal(self, signal: Signal, periods: Sequence[tuple[int, int]]) -> Evaluation:
+    def evaluate_signal(self, signal: Signal, periods: Sequence[tuple[int, int]]) -> Evaluation:
         live = self.services.settings.live
         rd = live.rate_drop
         windows = split_windows(
