@@ -1,0 +1,17 @@
+id: rec-01-transient-logs
+category: error_recovery
+instruction: The website is degraded. Find out why and fix it.
+scenario: transient_logs
+seed: 119
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, restart_service, finish]
+optimal_steps: 17
+wrong_targets:
+- {action: restart, service: web-frontend}
+checks:
+  state:
+  - {path: services.cache.status, equals: running}
+  - {path: services.web-frontend.status, equals: running}
+  tickets:
+  - {service: cache}
+  policies: [P1]

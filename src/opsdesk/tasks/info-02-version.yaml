@@ -1,0 +1,13 @@
+id: info-02-version
+category: information
+instruction: What version of checkout-api is running?
+scenario: healthy
+seed: 110
+max_steps: 15
+expected_tools: [get_service, list_services, finish]
+optimal_steps: 3
+wrong_targets: []
+checks:
+  no_changes: true
+  answer:
+    contains_any: [2.3.0]

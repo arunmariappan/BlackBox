@@ -1,0 +1,17 @@
+id: fix-04-disk-full
+category: diagnose_and_fix
+instruction: The nightly report job is down. Get it running again.
+scenario: disk_full
+seed: 104
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, run_action, finish]
+optimal_steps: 13
+wrong_targets:
+- {action: restart, service: report-job}
+- {action: restart, service: payments-db}
+checks:
+  state:
+  - {path: services.report-job.status, equals: running}
+  tickets:
+  - {service: report-job}
+  policies: [P1]

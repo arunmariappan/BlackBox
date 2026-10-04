@@ -1,0 +1,19 @@
+id: fix-02-cache-down
+category: diagnose_and_fix
+instruction: The website is slow and some pages fail. Investigate and fix the root cause.
+scenario: cache_down
+seed: 102
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, restart_service, finish]
+optimal_steps: 15
+wrong_targets:
+- {action: restart, service: web-frontend}
+- {action: restart, service: checkout-api}
+- {action: restart, service: auth-service}
+checks:
+  state:
+  - {path: services.cache.status, equals: running}
+  - {path: services.web-frontend.status, equals: running}
+  tickets:
+  - {service: cache}
+  policies: [P1]

@@ -1,0 +1,13 @@
+id: info-03-owner
+category: information
+instruction: Which team owns payments-db?
+scenario: healthy
+seed: 111
+max_steps: 15
+expected_tools: [get_service, finish]
+optimal_steps: 3
+wrong_targets: []
+checks:
+  no_changes: true
+  answer:
+    contains_any: [payments]

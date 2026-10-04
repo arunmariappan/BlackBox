@@ -1,0 +1,17 @@
+id: dep-01-frontend-cache
+category: dependencies
+instruction: web-frontend is degraded. Fix web-frontend.
+scenario: cache_down
+seed: 123
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, restart_service, finish]
+optimal_steps: 11
+wrong_targets:
+- {action: restart, service: web-frontend}
+checks:
+  state:
+  - {path: services.web-frontend.status, equals: running}
+  - {path: services.cache.status, equals: running}
+  tickets:
+  - {service: cache}
+  policies: [P1]

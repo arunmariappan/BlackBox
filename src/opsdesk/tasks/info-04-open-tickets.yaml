@@ -1,0 +1,12 @@
+id: info-04-open-tickets
+category: information
+instruction: How many tickets are open, and what are they about?
+scenario: healthy
+seed: 112
+max_steps: 15
+expected_tools: [list_tickets, finish]
+optimal_steps: 3
+wrong_targets: []
+checks:
+  no_changes: true
+  answer: {regex: \b(2|two)\b}

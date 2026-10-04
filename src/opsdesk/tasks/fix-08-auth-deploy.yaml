@@ -1,0 +1,17 @@
+id: fix-08-auth-deploy
+category: diagnose_and_fix
+instruction: Logins started failing right after the auth-service release. Fix it.
+scenario: bad_deploy_auth
+seed: 108
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, rollback_service, finish]
+optimal_steps: 13
+wrong_targets:
+- {action: restart, service: auth-service}
+checks:
+  state:
+  - {path: services.auth-service.version, equals: 1.9.4}
+  - {path: services.auth-service.status, equals: running}
+  tickets:
+  - {service: auth-service, priority: 1}
+  policies: [P1, P5]

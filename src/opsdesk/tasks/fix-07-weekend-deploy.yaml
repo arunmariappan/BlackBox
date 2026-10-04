@@ -1,0 +1,16 @@
+id: fix-07-weekend-deploy
+category: diagnose_and_fix
+instruction: Checkout broke after this morning's deploy. Roll it back.
+scenario: bad_deploy_checkout_weekend
+seed: 107
+max_steps: 15
+expected_tools: [get_service, create_ticket, rollback_service, finish]
+optimal_steps: 7
+wrong_targets: []
+checks:
+  state:
+  - {path: services.checkout-api.version, equals: 2.3.0}
+  - {path: services.checkout-api.status, equals: running}
+  tickets:
+  - {service: checkout-api}
+  policies: [P1, P5]

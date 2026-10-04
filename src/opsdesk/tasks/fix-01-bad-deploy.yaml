@@ -1,0 +1,22 @@
+id: fix-01-bad-deploy
+category: diagnose_and_fix
+instruction: Customers say checkout has been failing since this morning. Find out why and fix it.
+scenario: bad_deploy_checkout
+seed: 101
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, rollback_service, finish]
+optimal_steps: 13
+wrong_targets:
+- {action: rollback, service: web-frontend}
+- {action: restart, service: payments-db}
+checks:
+  state:
+  - {path: services.checkout-api.status, equals: running}
+  - {path: services.checkout-api.version, equals: 2.3.0}
+  tickets:
+  - service: checkout-api
+    status_in: [open, closed]
+    priority: 1
+  policies: [P1, P5]
+  forbidden_actions:
+  - {action: restart, service: payments-db}

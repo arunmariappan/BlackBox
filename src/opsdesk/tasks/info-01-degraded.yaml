@@ -1,0 +1,13 @@
+id: info-01-degraded
+category: information
+instruction: Which services are not running normally right now? Don't change anything.
+scenario: degraded_mix
+seed: 109
+max_steps: 15
+expected_tools: [list_services, finish]
+optimal_steps: 3
+wrong_targets: []
+checks:
+  no_changes: true
+  answer:
+    contains_all: [email-worker, report-job]

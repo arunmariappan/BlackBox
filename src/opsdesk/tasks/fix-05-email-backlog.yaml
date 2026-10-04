@@ -1,0 +1,16 @@
+id: fix-05-email-backlog
+category: diagnose_and_fix
+instruction: Password-reset emails aren't arriving. Fix it.
+scenario: email_backlog
+seed: 105
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, run_action, finish]
+optimal_steps: 13
+wrong_targets:
+- {action: restart, service: auth-service}
+checks:
+  state:
+  - {path: services.email-worker.status, equals: running}
+  tickets:
+  - {service: email-worker}
+  policies: [P1]

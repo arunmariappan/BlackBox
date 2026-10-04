@@ -1,0 +1,18 @@
+id: dep-03-email-auth
+category: dependencies
+instruction: Emails stopped going out. Fix the email worker.
+scenario: cert_expired
+seed: 125
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, run_action, finish]
+optimal_steps: 13
+wrong_targets:
+- {action: restart, service: email-worker}
+- {action: action, service: email-worker}
+checks:
+  state:
+  - {path: services.email-worker.status, equals: running}
+  - {path: services.auth-service.status, equals: running}
+  tickets:
+  - {service: auth-service}
+  policies: [P1]

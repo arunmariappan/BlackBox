@@ -1,0 +1,20 @@
+id: rec-02-clear-cache-fails
+category: error_recovery
+instruction: Pages are slow and the cache looks unhealthy. Fix it.
+scenario: cache_clear_fails
+seed: 120
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, run_action, restart_service,
+  finish]
+optimal_steps: 15
+wrong_targets:
+- {action: restart, service: web-frontend}
+checks:
+  state:
+  - {path: services.cache.status, equals: running}
+  - {path: services.web-frontend.status, equals: running}
+  tickets:
+  - {service: cache}
+  policies: [P1]
+  required_actions:
+  - {action: restart, service: cache}

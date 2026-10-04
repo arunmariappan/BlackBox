@@ -1,0 +1,17 @@
+id: fix-06-indexer-oom
+category: diagnose_and_fix
+instruction: Search returns errors. Fix it.
+scenario: indexer_oom
+seed: 106
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, restart_service, finish]
+optimal_steps: 13
+wrong_targets:
+- {action: restart, service: web-frontend}
+checks:
+  state:
+  - {path: services.search-indexer.status, equals: running}
+  - {path: services.web-frontend.status, equals: running}
+  tickets:
+  - {service: search-indexer}
+  policies: [P1]

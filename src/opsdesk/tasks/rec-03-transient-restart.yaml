@@ -1,0 +1,15 @@
+id: rec-03-transient-restart
+category: error_recovery
+instruction: Search is down. Fix it.
+scenario: transient_restart
+seed: 121
+max_steps: 15
+expected_tools: [list_services, get_service, get_logs, search_runbooks, read_runbook, create_ticket, restart_service, finish]
+optimal_steps: 15
+wrong_targets: []
+checks:
+  state:
+  - {path: services.search-indexer.status, equals: running}
+  tickets:
+  - {service: search-indexer}
+  policies: [P1]

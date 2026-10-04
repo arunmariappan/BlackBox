@@ -1,0 +1,16 @@
+id: rec-04-transient-rollback
+category: error_recovery
+instruction: Checkout is broken since the last deploy. Fix it.
+scenario: transient_rollback
+seed: 122
+max_steps: 15
+expected_tools: [get_service, get_logs, create_ticket, rollback_service, search_runbooks, read_runbook, finish]
+optimal_steps: 11
+wrong_targets: []
+checks:
+  state:
+  - {path: services.checkout-api.version, equals: 2.3.0}
+  - {path: services.checkout-api.status, equals: running}
+  tickets:
+  - {service: checkout-api}
+  policies: [P1, P5]

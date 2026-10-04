@@ -1,0 +1,13 @@
+id: info-05-dependents
+category: information
+instruction: Which services depend on cache?
+scenario: healthy
+seed: 113
+max_steps: 15
+expected_tools: [list_services, get_service, finish]
+optimal_steps: 17
+wrong_targets: []
+checks:
+  no_changes: true
+  answer:
+    contains_all: [web-frontend, checkout-api, auth-service]
