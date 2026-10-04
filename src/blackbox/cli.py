@@ -251,3 +251,83 @@ def runs_show(run: Annotated[str, typer.Argument(help="Run id, trace id or uniqu
     if found.output_text:
         tree.add(f"output: {escape(found.output_text[:200])}")
     console.print(tree)
+
+
+@app.command()
+def replay(
+    run: Annotated[str, typer.Argument(help="Run id, trace id or unique id prefix.")],
+    from_step: Annotated[int | None, typer.Option("--from-step", help="Fork: tape before step N, live from N.")] = None,
+    auto_fork: Annotated[bool, typer.Option("--auto-fork", help="Tape until the first request that differs.")] = False,
+    model: Annotated[str | None, typer.Option("--model", help="Model for live steps.")] = None,
+    patch: Annotated[Path | None, typer.Option("--patch", help="YAML file of request patches.")] = None,
+    speed: Annotated[float, typer.Option("--speed", help="0 = as fast as possible, 1 = recorded timing.")] = 0.0,
+    lenient: Annotated[bool, typer.Option("--lenient", help="Exact: serve the next tape step on divergence.")] = False,
+    times: Annotated[int, typer.Option("--times", help="Repeat the replay K times.")] = 1,
+) -> None:
+    """Replay a recorded run exactly, fork it from step N, or auto-fork it after a change."""
+    import time
+
+    from rich.markup import escape
+    from rich.table import Table
+
+    if from_step is not None and auto_fork:
+        raise typer.BadParameter("choose --from-step or --auto-fork, not both")
+    mode = "fork" if from_step is not None else "auto_fork" if auto_fork else "exact"
+    patches = patch.read_text(encoding="utf-8") if patch is not None else []
+    if mode == "exact" and patches:
+        console.print(
+            "[red]exact replay with patches is refused[/]: a patched request can't match the tape. Try --auto-fork."
+        )
+        raise typer.Exit(2)
+    body = {
+        "source_run_id": run,
+        "mode": mode,
+        "fork_step": from_step,
+        "model": model,
+        "patches": patches,
+        "speed": speed,
+        "lenient": lenient,
+    }
+    failures = 0
+    for attempt in range(1, times + 1):
+        created = api_request("POST", "/api/sessions", json=body)
+        assert isinstance(created, dict)
+        console.print(f"[{attempt}/{times}] session {created['session_id']}: {created['url']}")
+        while True:
+            session = api_request("GET", f"/api/sessions/{created['session_id']}")
+            assert isinstance(session, dict)
+            if session["status"] != "active":
+                break
+            time.sleep(0.5)
+        report = session.get("result") or {}
+        if "steps" not in report:
+            console.print(f"[red]{session['status']}: {escape(str(report.get('error')))}[/]")
+            failures += 1
+            continue
+        table = Table("#", "node", "kind", "served", "tape step", "changed")
+        for step in report["steps"]:
+            changed = step.get("differs_from_tape")
+            table.add_row(
+                str(step["idx"]),
+                escape(step.get("node") or "unknown"),
+                step["kind"],
+                step["served"],
+                str(step.get("tape_step") or ""),
+                "" if changed is None else ("response differs" if changed else "same"),
+            )
+        console.print(table)
+        divergence = report.get("first_divergence")
+        if divergence:
+            console.print(
+                f"first divergence: tape step {divergence.get('step')} ({escape(str(divergence.get('node')))})"
+            )
+        verdict = "[green]EXACT[/]" if report["exact"] else "[yellow]not exact[/]"
+        console.print(
+            f"{verdict} · {report['live_calls']} live calls · output "
+            f"{'identical' if report['outputs']['equal'] else 'differs'} · ending "
+            f"{report['endings']['source']} → {report['endings']['replay']} · replay run {report['replay_run']}"
+        )
+        if mode == "exact" and not report["exact"]:
+            failures += 1
+    if failures:
+        raise typer.Exit(1)

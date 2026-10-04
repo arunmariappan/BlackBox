@@ -44,16 +44,17 @@ def make_templates() -> Jinja2Templates:
 
 
 def create_app(services: Services) -> FastAPI:
-    from blackbox.web import api, pages
+    from blackbox.web import api, pages, replay
 
     app = FastAPI(title="BlackBox", version=__version__, docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.state.services = services
     app.state.templates = make_templates()
     app.state.banner_providers = []
     app.state.run_panels = []
-    app.state.nav = [("/runs", "Runs"), ("/unattributed", "Unattributed")]
+    app.state.nav = [("/runs", "Runs"), ("/sessions", "Replays"), ("/unattributed", "Unattributed")]
     app.include_router(otlp_router(services.assembler.ingest))
     app.include_router(api.router)
+    app.include_router(replay.router)
     app.include_router(pages.router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 

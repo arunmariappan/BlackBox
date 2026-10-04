@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Fork run {{ run.id[-8:] }}{% endblock %}
+{% block content %}
+<h1>Fork <a href="/runs/{{ run.id }}">{{ run.id }}</a> from step {{ step.idx }} ({{ step.node or "unknown" }})</h1>
+<p class="muted">Steps before {{ step.idx }} are answered from the recording. Step {{ step.idx }} and everything after it go live, with the model and messages below. Editing a message turns into a patch for this step.</p>
+<form method="post" action="/runs/{{ run.id }}/replay">
+  <input type="hidden" name="mode" value="fork">
+  <input type="hidden" name="fork_step" value="{{ step.idx }}">
+  {% if upstream %}<input type="hidden" name="upstream" value="{{ upstream }}">{% endif %}
+  <p><label>Model for live steps
+    {% if models %}
+    <select name="model"><option value="">as recorded ({{ step.model or "?" }})</option>{% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select>
+    {% else %}
+    <input name="model" placeholder="as recorded ({{ step.model or '?' }})"> <span class="muted small">(Ollama's model list isn't reachable)</span>
+    {% endif %}
+  </label></p>
+  {% for m in messages %}
+  <div class="msg {{ m.role }}">
+    <span class="role">{{ m.role }}</span>
+    <input type="hidden" name="original_{{ loop.index0 }}" value="{{ m.content if m.content is string else '' }}">
+    <textarea name="message_{{ loop.index0 }}" rows="{{ [4, ((m.content or '') | length // 100) + 2] | max if m.content is string else 3 }}"{% if m.content is not string %} disabled{% endif %}>{{ m.content if m.content is string else m.content | pretty }}</textarea>
+  </div>
+  {% else %}
+  <p class="muted">This step has no chat messages to edit; the fork re-runs it live as recorded.</p>
+  {% endfor %}
+  <p><button class="primary" type="submit">Fork</button></p>
+</form>
+{% endblock %}

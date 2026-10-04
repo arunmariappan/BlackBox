@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Replays{% endblock %}
+{% block content %}
+<h1>Replays and forks</h1>
+<table>
+  <thead><tr><th>Created (UTC)</th><th>Mode</th><th>Source run</th><th>Status</th><th>Result</th><th class="num">Live calls</th></tr></thead>
+  <tbody hx-get="/sessions" hx-select="tbody > tr" hx-swap="innerHTML" hx-trigger="sse:session throttle:1s">
+  {% for s in sessions %}
+  <tr>
+    <td class="small"><a href="/sessions/{{ s.id }}">{{ s.created_ms | time }}</a></td>
+    <td>{{ s.mode }}{% if s.fork_step %} from step {{ s.fork_step }}{% endif %}{% if s.overrides.model %} · {{ s.overrides.model }}{% endif %}</td>
+    <td><a href="/runs/{{ s.source_run_id }}">{{ s.source_run_id }}</a></td>
+    <td><span class="badge {% if s.status == 'complete' %}ok{% elif s.status == 'active' %}accent{% else %}bad{% endif %}">{{ s.status }}</span></td>
+    <td>{% if s.result and s.result.steps is defined %}{% if s.result.exact %}<span class="badge ok">exact</span>{% elif s.result.first_divergence %}<span class="badge warn">diverged at step {{ s.result.first_divergence.step }}</span>{% else %}<span class="badge">{{ 'output identical' if s.result.outputs.equal else 'output differs' }}</span>{% endif %}{% elif s.result %}<span class="badge bad">{{ s.result.error }}</span>{% endif %}</td>
+    <td class="num">{{ s.result.live_calls if s.result and s.result.live_calls is defined else "" }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">No replays yet. Open a recorded run and choose “Replay exactly” or “Fork from here”.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

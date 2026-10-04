@@ -7,7 +7,13 @@
   <span class="badge {% if run.status == 'open' %}accent{% elif run.status != 'complete' %}bad{% endif %}">{{ run.status }}</span>
   {% if run.ending %}<span class="badge {{ run.ending | ending_class }}">{{ run.ending }}</span>{% endif %}
   {% if run.replayable %}<span class="badge tape">recorded</span>{% endif %}
-  <span class="right flex">{% block run_actions %}{% for action in actions or [] %}{{ action | safe }}{% endfor %}{% endblock %}</span>
+  <span class="right flex">
+    {% if run.replayable and run.status == 'complete' %}
+    <form method="post" action="/runs/{{ run.id }}/replay"><input type="hidden" name="mode" value="exact"><button class="primary" type="submit">Replay exactly</button></form>
+    <form method="post" action="/runs/{{ run.id }}/replay"><input type="hidden" name="mode" value="auto_fork"><button type="submit">Auto-fork</button></form>
+    {% endif %}
+    {% for action in actions or [] %}{{ action | safe }}{% endfor %}
+  </span>
 </div>
 {% if run.status == 'open' %}
 <div hx-get="/runs/{{ run.id }}" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-trigger="sse:run throttle:2s"></div>
@@ -53,6 +59,7 @@
     {% if step.status != 'ok' %}<span class="badge bad">{{ step.status }}</span>{% endif %}
     {% if exchange %}<span class="badge {% if exchange.row.served_from == 'live' %}ok{% else %}tape{% endif %}">{{ 'recorded' if exchange.row.served_from == 'live' else exchange.row.served_from.split(':')[0] }}</span>{% endif %}
     {% for badge in (step_badges or {}).get(step.idx, []) %}<span class="badge {{ badge.css }}">{{ badge.text }}</span>{% endfor %}
+    {% if run.replayable and run.status == 'complete' %}<a class="small" href="/runs/{{ run.id }}/fork?step={{ step.idx }}">fork from here</a>{% endif %}
     <span class="right muted small">
       {% if step.input_tokens is not none %}{{ step.input_tokens }}→{{ step.output_tokens }} tok · {% endif %}{{ step.latency_ms | duration }}
       {% if span %} · span {{ span.duration_ms | duration }}{% endif %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import text_block %}
+{% block title %}Replay {{ session.id[-8:] }}{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>{{ session.mode | replace("_", "-") }} replay</h1>
+  <span class="badge {% if session.status == 'complete' %}ok{% elif session.status == 'active' %}accent{% else %}bad{% endif %}">{{ session.status }}</span>
+  {% if report.exact %}<span class="badge ok">EXACT: every step from the tape, same output</span>{% endif %}
+</div>
+{% if session.status == 'active' %}
+<div hx-get="/sessions/{{ session.id }}" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-trigger="sse:session, sse:run throttle:1s"></div>
+<p class="muted">Running… this page updates when the replay completes.</p>
+{% endif %}
+<dl class="kv">
+  <dt>source run</dt><dd>{% if source %}<a href="/runs/{{ source.id }}">{{ source.id }}</a> · ending {{ source.ending }}{% endif %}</dd>
+  <dt>replay run</dt><dd>{% if replay %}<a href="/runs/{{ replay.id }}">{{ replay.id }}</a> · {{ replay.status }} · ending {{ replay.ending }}{% else %}—{% endif %}</dd>
+  {% if session.fork_step %}<dt>fork from</dt><dd>step {{ session.fork_step }}</dd>{% endif %}
+  {% if session.overrides.model %}<dt>model override</dt><dd>{{ session.overrides.model }}</dd>{% endif %}
+  {% if session.overrides.patches %}<dt>patches</dt><dd>{% for p in session.overrides.patches %}<span class="badge warn">{{ p.name }}</span> {% endfor %}</dd>{% endif %}
+  {% if report.rebuilt_input %}<dt>input</dt><dd><span class="badge warn">rebuilt from the source run's spans</span></dd>{% endif %}
+  {% if report.error %}<dt>error</dt><dd><span class="badge bad">{{ report.error }}</span></dd>{% endif %}
+  {% if report.entry_error %}<dt>entry request</dt><dd><span class="badge bad">{{ report.entry_error }}</span></dd>{% endif %}
+  {% if report.steps is defined %}<dt>live calls</dt><dd>{{ report.live_calls }} (steps: {{ report.source_steps }} recorded, {{ report.replay_steps }} replayed)</dd>{% endif %}
+</dl>
+
+{% if report.first_divergence %}
+<h2>First divergence: tape step {{ report.first_divergence.step }} ({{ report.first_divergence.node or "unknown node" }})</h2>
+{% set diff = report.first_divergence.diff %}
+{% if diff.kind == 'messages' %}
+  {% for m in diff.messages %}
+  <div class="small muted">message {{ m.index }} {{ m.role or "" }} · {{ m.change }}</div>
+  {% if m.diff %}<pre>{% for line in m.diff.split('\n') %}<span class="{% if line.startswith('+') and not line.startswith('+++') %}diff-add{% elif line.startswith('-') and not line.startswith('---') %}diff-del{% endif %}">{{ line }}</span>
+{% endfor %}</pre>{% else %}<pre>{{ m.other | pretty }}</pre>{% endif %}
+  {% endfor %}
+{% else %}
+  <pre>{{ diff.paths | pretty }}</pre>
+{% endif %}
+{% endif %}
+
+{% if report.steps is defined %}
+<h2>Steps</h2>
+<table>
+  <thead><tr><th>#</th><th>Node</th><th>Kind</th><th>Served</th><th>Tape step</th><th>Source step</th><th>Replay step</th><th>Changed</th></tr></thead>
+  <tbody>
+  {% for src, rep in pairs %}
+  {% set r = report.steps[loop.index0] if loop.index0 < report.steps | length else none %}
+  <tr>
+    <td>{{ loop.index }}</td>
+    <td>{{ (rep or src).node or "unknown" }}</td>
+    <td>{{ (rep or src).kind }}</td>
+    <td>{% if r %}<span class="badge {% if r.served == 'tape' %}tape{% elif r.served == 'blocked' %}bad{% else %}ok{% endif %}">{{ r.served }}</span>{% endif %}</td>
+    <td>{{ r.tape_step if r and r.tape_step else "" }}</td>
+    <td class="small">{% if src %}<a href="/runs/{{ source.id }}#step-{{ src.idx }}">{{ src.model or src.tool_name or "" }}</a>{% else %}—{% endif %}</td>
+    <td class="small">{% if rep %}<a href="/runs/{{ replay.id }}#step-{{ rep.idx }}">{{ rep.model or rep.tool_name or "" }}</a>{% else %}—{% endif %}</td>
+    <td>{% if r and r.differs_from_tape is defined %}{{ "response differs" if r.differs_from_tape else "same response" }}{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Output {{ "identical" if report.outputs.equal else "differs" }}</h2>
+{% if report.outputs.fields %}
+<table>
+  <thead><tr><th>Field</th><th>Same?</th><th>Source</th><th>Replay</th></tr></thead>
+  <tbody>
+  {% for name, f in report.outputs.fields.items() %}
+  <tr><td><code>{{ name }}</code></td><td>{% if f.equal %}<span class="badge ok">same</span>{% else %}<span class="badge bad">differs</span>{% endif %}</td>
+    <td>{% if not f.equal %}{{ text_block(f.source | pretty, 600) }}{% endif %}</td><td>{% if not f.equal %}{{ text_block(f.replay | pretty, 600) }}{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% for section in report.get("sections", []) %}{{ section | safe }}{% endfor %}
+{% endif %}
+{% endblock %}

@@ -102,7 +102,7 @@ async def exchange_page(request: Request, exchange_id: str) -> HTMLResponse:
         row,
         await blobs.get_optional(row.request_blob),
         await blobs.get_optional(row.response_blob),
-        await blobs.get_optional(getattr(row, "sent_request_blob", None)),
+        await blobs.get_optional(row.sent_request_blob),
     )
     template = "_exchange.html" if request.headers.get("hx-request") else "exchange.html"
     return render(request, template, exchange=exchange)
