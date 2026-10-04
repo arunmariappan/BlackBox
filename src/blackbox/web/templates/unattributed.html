@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Unattributed calls{% endblock %}
+{% block content %}
+<h1>Unattributed calls</h1>
+<p class="muted">Calls that reached the proxy without a <code>traceparent</code> (or an <code>X-BlackBox-Trace-Id</code>), so no run can claim them. An agent without HTTP instrumentation sends these.</p>
+<table>
+  <thead><tr><th>Time (UTC)</th><th>Upstream</th><th>Request</th><th class="num">Status</th><th class="num">Duration</th><th></th></tr></thead>
+  <tbody hx-get="/unattributed" hx-select="tbody > tr" hx-swap="innerHTML" hx-trigger="sse:exchange throttle:2s">
+  {% for e in exchanges %}
+  <tr>
+    <td class="small">{{ e.started_ms | time }}</td>
+    <td>{{ e.upstream }}</td>
+    <td><code>{{ e.method }} {{ e.path }}</code>{% if e.error %} <span class="badge bad">{{ e.error }}</span>{% endif %}</td>
+    <td class="num">{{ e.status }}</td>
+    <td class="num">{{ ((e.ended_ms or e.started_ms) - e.started_ms) | duration }}</td>
+    <td><a href="/exchanges/{{ e.id }}">bytes</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">No unattributed calls.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

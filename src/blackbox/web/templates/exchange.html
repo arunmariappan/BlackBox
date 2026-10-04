@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Exchange{% endblock %}
+{% block content %}
+<h1>Exchange <code>{{ exchange.row.id }}</code></h1>
+{% if exchange.row.trace_id %}<p>trace <code>{{ exchange.row.trace_id }}</code></p>{% endif %}
+{% include "_exchange.html" %}
+{% endblock %}

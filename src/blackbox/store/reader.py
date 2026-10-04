@@ -61,6 +61,13 @@ class StoreReader:
             query = select(Exchange).where(Exchange.trace_id == trace_id).order_by(Exchange.seq, Exchange.id)
             return (await s.execute(query)).scalars().all()
 
+    async def unattributed_exchanges(self, limit: int = 200) -> Sequence[Exchange]:
+        async with self.sessions() as s:
+            query = (
+                select(Exchange).where(Exchange.trace_id.is_(None)).order_by(Exchange.started_ms.desc()).limit(limit)
+            )
+            return (await s.execute(query)).scalars().all()
+
     async def exchange(self, exchange_id: str) -> Exchange | None:
         async with self.sessions() as s:
             return await s.get(Exchange, exchange_id)

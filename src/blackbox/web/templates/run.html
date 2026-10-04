@@ -74,7 +74,7 @@
     {% if v.inputs %}<h3>Inputs ({{ v.inputs | length }})</h3>{% for text in v.inputs %}{{ text_block(text, 400) }}{% endfor %}
       {% if v.dimensions %}<p class="muted small">{{ v.count }} vectors of {{ v.dimensions }} dimensions (not shown)</p>{% endif %}{% endif %}
     {% if v.tools %}<details><summary class="small muted">{{ v.tools | length }} tool definitions</summary><pre>{{ v.tools | pretty }}</pre></details>{% endif %}
-    {% if v.options %}<details><summary class="small muted">options and format</summary><pre>{{ {"options": v.options, "format": v.format} | pretty }}</pre></details>{% endif %}
+    {% if v.options %}<details><summary class="small muted">options and format</summary><pre>{{ {"options": v.options, "format": v.get("format")} | pretty }}</pre></details>{% endif %}
     {% if v.timings %}<p class="muted small">{% for k, val in v.timings.items() %}{{ k }} {{ val }} · {% endfor %}</p>{% endif %}
     {% if exchange %}
     <details><summary class="small">Exact bytes: <code>{{ exchange.row.method }} {{ exchange.row.path }}</code> → {{ exchange.row.status }} {% if exchange.row.stream %}(streamed, {{ exchange.row.chunk_times | length }} chunks){% endif %}</summary>

@@ -1,0 +1,9 @@
+{% from "_macros.html" import text_block %}
+<div class="small muted"><code>{{ exchange.row.method }} {{ exchange.row.path }}{% if exchange.row.query %}?{{ exchange.row.query }}{% endif %}</code> → {{ exchange.row.status }} · {{ exchange.row.upstream }} · seq {{ exchange.row.seq }} · {{ exchange.row.served_from }}{% if exchange.row.error %} · <span class="badge bad">{{ exchange.row.error }}</span>{% endif %}</div>
+<div class="small muted">request headers (redacted)</div><pre>{{ exchange.row.request_headers | pretty }}</pre>
+<div class="small muted">request body</div>{{ text_block(exchange.request_body.decode('utf-8', 'replace') if exchange.request_body else '', 4000) }}
+{% if exchange.sent_request_body %}<div class="small muted">body actually sent</div>{{ text_block(exchange.sent_request_body.decode('utf-8', 'replace'), 4000) }}{% endif %}
+<div class="small muted">response headers</div><pre>{{ exchange.row.response_headers | pretty }}</pre>
+<div class="small muted">response body</div>{{ text_block(exchange.response_body.decode('utf-8', 'replace') if exchange.response_body else '', 4000) }}
+{% if exchange.row.chunk_times %}<details><summary class="small muted">{{ exchange.row.chunk_times | length }} chunks [byte offset, ms]</summary><pre>{{ exchange.row.chunk_times }}</pre></details>{% endif %}
+{% if exchange.row.divergence %}<div class="small muted">divergence</div><pre>{{ exchange.row.divergence | pretty }}</pre>{% endif %}

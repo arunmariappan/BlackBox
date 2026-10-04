@@ -51,7 +51,7 @@ def create_app(services: Services) -> FastAPI:
     app.state.templates = make_templates()
     app.state.banner_providers = []
     app.state.run_panels = []
-    app.state.nav = [("/runs", "Runs")]
+    app.state.nav = [("/runs", "Runs"), ("/unattributed", "Unattributed")]
     app.include_router(otlp_router(services.assembler.ingest))
     app.include_router(api.router)
     app.include_router(pages.router)

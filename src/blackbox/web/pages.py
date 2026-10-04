@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from blackbox.runs.context import load_run_context
+from blackbox.runs.context import ExchangeData, load_run_context
 from blackbox.services import Services
 from blackbox.web.format import waterfall
 
@@ -82,3 +82,27 @@ async def run_page(request: Request, ref: str) -> HTMLResponse:
         if panel:
             context["panels"].append(panel)
     return render(request, "run.html", **context)
+
+
+@router.get("/unattributed", response_class=HTMLResponse, include_in_schema=False)
+async def unattributed_page(request: Request) -> HTMLResponse:
+    services = services_of(request)
+    exchanges = await services.store.reader.unattributed_exchanges()
+    return render(request, "unattributed.html", exchanges=exchanges)
+
+
+@router.get("/exchanges/{exchange_id}", response_class=HTMLResponse, include_in_schema=False)
+async def exchange_page(request: Request, exchange_id: str) -> HTMLResponse:
+    services = services_of(request)
+    row = await services.store.reader.exchange(exchange_id)
+    if row is None:
+        raise HTTPException(404, f"no exchange {exchange_id}")
+    blobs = services.store.blobs
+    exchange = ExchangeData(
+        row,
+        await blobs.get_optional(row.request_blob),
+        await blobs.get_optional(row.response_blob),
+        await blobs.get_optional(getattr(row, "sent_request_blob", None)),
+    )
+    template = "_exchange.html" if request.headers.get("hx-request") else "exchange.html"
+    return render(request, template, exchange=exchange)

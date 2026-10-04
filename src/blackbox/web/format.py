@@ -36,7 +36,7 @@ def fmt_json(value: Any) -> str:
             value = json.loads(value)
         except ValueError:
             return str(value)
-    return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False)
+    return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False, default=str)
 
 
 def fmt_num(value: float | int | None) -> str:
