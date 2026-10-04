@@ -5,7 +5,7 @@ checker, and the environment's tools through the proxy at 8213."""
 import json
 import re
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from blackbox.net import make_client
 from blackbox.otlp.decode import SpanData
@@ -58,6 +58,7 @@ class OpsDeskProfile(Profile):
     description = "OpsDesk (Python tool-calling agent over a simulated IT ops desk)"
     failure_endings = frozenset({"max_steps", "error"})
     stateful_upstreams = frozenset({"opsdesk-env"})
+    tool_groups: ClassVar[list[set[str]]] = [{"run_action", "restart_service", "rollback_service"}]
 
     @property
     def agent_url(self) -> str:

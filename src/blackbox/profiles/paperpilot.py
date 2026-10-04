@@ -5,7 +5,7 @@ from typing import Any
 
 from blackbox.otlp.decode import SpanData
 from blackbox.profiles.base import Profile, StartRequest
-from blackbox.runs.context import RunContext
+from blackbox.runs.context import RunContext, StepDraft
 
 ROOT_SPAN = "agentic_rag_request"
 NODES = frozenset(
@@ -30,6 +30,9 @@ class PaperPilotProfile(Profile):
     description = "PaperPilot /ask-agentic (agentic RAG over arXiv papers, .NET)"
     node_spans = NODES
     failure_endings = frozenset({"max_attempts", "search_unavailable", "error"})
+
+    def read_only(self, step: StepDraft) -> bool | None:
+        return True if step.kind in ("tool", "embedding") else None
 
     @property
     def base_url(self) -> str:

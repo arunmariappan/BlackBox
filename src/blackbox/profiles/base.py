@@ -48,6 +48,7 @@ class Profile:
     description: ClassVar[str] = ""
     node_spans: ClassVar[frozenset[str]] = frozenset()
     failure_endings: ClassVar[frozenset[str]] = frozenset()
+    tool_groups: ClassVar[list[set[str]]] = []  # tools that can stand in for each other when recovering from an error
 
     def __init__(self, options: dict[str, Any] | None = None) -> None:
         self.options: dict[str, Any] = dict(options or {})
@@ -67,6 +68,13 @@ class Profile:
 
     def exchange_view(self, exchange: ExchangeData, ctx: RunContext) -> ExchangeView | None:
         """A view of an exchange this profile understands better than the generic parsers (None: use them)."""
+        return None
+
+    def read_only(self, step: StepDraft) -> bool | None:
+        """Whether a tool step only reads (None: decide from the HTTP method)."""
+        view = step.view
+        if isinstance(view.get("read_only"), bool):
+            return bool(view["read_only"])
         return None
 
     # Starting runs --------------------------------------------------------------------------------------------------
