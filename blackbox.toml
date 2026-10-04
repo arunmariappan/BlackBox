@@ -1,0 +1,47 @@
+# BlackBox's committed defaults. Environment variables override them (BLACKBOX__SERVER__PORT=8300), and `.env` holds
+# optional secrets. Everything listens on 127.0.0.1 and upstreams use 127.0.0.1, never localhost.
+
+[server]
+host = "127.0.0.1"
+port = 8200                       # UI, REST API, OTLP at /v1/traces
+
+[store]
+path = "data/blackbox.db"
+
+[ollama]                          # BlackBox's own calls (judges, descriptions, cluster names)
+base_url = "http://127.0.0.1:11434"
+model = "qwen3.5:4b"
+timeout_seconds = 300
+
+[runs]
+quiet_seconds = 5                 # a run is complete this long after its root span ended and nothing new arrived
+keep_unmatched = false            # keep traces that no profile matches (classic /ask, health checks)
+
+[[proxy.upstreams]]
+name = "ollama"
+listen_port = 8210
+target = "http://127.0.0.1:11434"
+record_paths = ["/api/chat", "/api/generate", "/api/embed", "/v1/chat/completions"]
+timeout_seconds = 600
+
+[[proxy.upstreams]]
+name = "opensearch"
+listen_port = 8211
+target = "http://127.0.0.1:9210"
+record_paths = ["/*/_search"]
+
+[[proxy.upstreams]]
+name = "jina"
+listen_port = 8212
+target = "https://api.jina.ai"
+record_paths = ["/v1/embeddings"]
+
+[[proxy.upstreams]]
+name = "opsdesk-env"
+listen_port = 8213
+target = "http://127.0.0.1:8221"
+record_paths = ["/*"]
+stateful = true
+
+[proxy]
+redact_headers = ["authorization", "x-api-key", "api-key", "cookie", "set-cookie", "proxy-authorization"]
