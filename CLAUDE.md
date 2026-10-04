@@ -43,6 +43,7 @@ uv run blackbox run paperpilot --dataset datasets/paperpilot/questions.yaml [--t
 uv run opsdesk env    # :8221      uv run opsdesk agent    # :8220        (phase 6)
 uv run blackbox run opsdesk --task fix-01-bad-deploy [--mode chaotic]   # or --all-tasks --repeats 2
 uv run opsdesk tasks list            uv run opsdesk check <sandbox> --task <id>
+uv run blackbox metrics recompute [--profile P]   # after changing a metric module's version (phase 7)
 uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (phase 10)
 ```
 
