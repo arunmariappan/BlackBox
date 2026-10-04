@@ -75,6 +75,9 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
 ## Gotchas
 
 - Git here has `core.autocrlf=true`; keep files LF (`.gitattributes` enforces `eol=lf`).
+- Integration tests start a whole BlackBox in-process (`tests/harness.py`: real sockets on free ports, a copy of a
+  database migrated once per session). The SDK's exporter posts from a background thread, so tests call
+  `await asyncio.to_thread(sdk.flush)`, never `sdk.flush()` on the event loop (it would deadlock the in-process server).
 - `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
   aligned comments stay as written.
 - The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one
@@ -91,5 +94,8 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
   in `docs/plan/phase-0-bootstrap.md` and record the answers here. Until then the code assumes the expected answers
   (the incoming `traceparent` sets PaperPilot's trace id and outgoing calls carry it, with the HttpClient span as
   parent) and keeps the R1 fallback cheap: the proxy also accepts an `X-BlackBox-Session` header.
+- `tests/fixtures/otlp/paperpilot-agentic.json` is **hand-written** from the plan's description of PaperPilot's spans
+  (`python -m tests.fixtures.paperpilot` regenerates it). Replace it with S2's real export and fix the adapters in
+  `otlp/genai.py` if PaperPilot's attributes differ.
 - The `ollama` Python client (0.6) takes `think`, `format` (a JSON schema dict) and `tools` on `chat`, and is built on
   `httpx`, so the SDK's httpx instrumentation carries `traceparent` to the proxy.

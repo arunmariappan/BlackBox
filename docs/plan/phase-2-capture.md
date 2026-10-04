@@ -101,44 +101,71 @@ In the PaperPilot repo, with its own conventions and tests:
 ## Tasks
 
 ### 2.1 Receiver
-- [ ] `blackbox/otlp/receiver.py`: route, content types, gzip, size limit, response.
-- [ ] `blackbox serve`: uvicorn with the FastAPI app; startup runs migrations and starts the writer and assembler.
+- [x] `blackbox/otlp/receiver.py`: route, content types, gzip, size limit, response.
+- [x] `blackbox serve`: uvicorn with the FastAPI app; startup runs migrations and starts the writer and assembler.
 
 ### 2.2 Normalisation
-- [ ] `SpanView` and the adapters in the table, each with a fixture test: S2's PaperPilot trace, a trace from the
+- [x] `SpanView` and the adapters in the table, each with a fixture test: S2's PaperPilot trace, a trace from the
       SDK, and a hand-written trace in the older event dialect.
 
 ### 2.3 Run assembly and steps
-- [ ] `RunAssembler` with completion rules, profile matching, deletion of unmatched traces and restart recovery.
-- [ ] Step builder from spans, node lookup, token totals per run.
+- [x] `RunAssembler` with completion rules, profile matching, deletion of unmatched traces and restart recovery.
+- [x] Step builder from spans, node lookup, token totals per run.
 
 ### 2.4 Profiles
-- [ ] `Profile` base class, PaperPilot profile, and `blackbox run <profile> <input>`.
+- [x] `Profile` base class, PaperPilot profile, and `blackbox run <profile> <input>`.
 
 ### 2.5 SDK
-- [ ] `sdk.init`, `agent_run`, `traced_chat`, `@tool`, with a test that runs a fake agent against an in-process
+- [x] `sdk.init`, `agent_run`, `traced_chat`, `@tool`, with a test that runs a fake agent against an in-process
       BlackBox and checks the stored run.
 
 ### 2.6 UI and API
-- [ ] Base layout (Jinja2, HTMX and its SSE extension served from `static/`, light and dark themes).
-- [ ] **Runs** page: time, profile, source, status, ending, steps, tokens, duration; filters by profile, ending and
+- [x] Base layout (Jinja2, HTMX and its SSE extension served from `static/`, light and dark themes).
+- [x] **Runs** page: time, profile, source, status, ending, steps, tokens, duration; filters by profile, ending and
       source; new and completed runs appear live over SSE.
-- [ ] **Run** page: input, output and ending at the top; the step list, each step expandable to its messages (system,
+- [x] **Run** page: input, output and ending at the top; the step list, each step expandable to its messages (system,
       user, assistant, tool) and tool calls, long text collapsed; a span waterfall drawn server-side with CSS bars; a
       raw spans tab.
-- [ ] REST: `GET /api/runs`, `/api/runs/{id}`, `/api/runs/{id}/steps`, `/api/runs/{id}/spans`; SSE at `/api/events`.
-- [ ] CLI: `blackbox runs list`, `blackbox runs show <id>` (a Rich tree of nodes and steps).
+- [x] REST: `GET /api/runs`, `/api/runs/{id}`, `/api/runs/{id}/steps`, `/api/runs/{id}/spans`; SSE at `/api/events`.
+- [x] CLI: `blackbox runs list`, `blackbox runs show <id>` (a Rich tree of nodes and steps).
 
 ## Tests
-- [ ] Protobuf and JSON bodies of the same trace produce identical stored spans; gzip works; 413 over the limit.
-- [ ] Spans of one run arriving in three batches, out of order, give one run with the right root and steps.
-- [ ] A run isn't completed while its root span is still open, and is completed 5 s after the last span.
-- [ ] An unmatched trace is deleted on completion.
-- [ ] PaperPilot fixture: five node spans, LLM steps with their node, ending `answered`.
-- [ ] After a restart, open runs are completed.
+- [x] Protobuf and JSON bodies of the same trace produce identical stored spans; gzip works; 413 over the limit.
+- [x] Spans of one run arriving in three batches, out of order, give one run with the right root and steps.
+- [x] A run isn't completed while its root span is still open, and is completed 5 s after the last span.
+- [x] An unmatched trace is deleted on completion.
+- [x] PaperPilot fixture: five node spans, LLM steps with their node, ending `answered`.
+- [x] After a restart, open runs are completed.
 
 ## Done when
 - [ ] With the PaperPilot switch on, `blackbox run paperpilot "What are transformer architectures?"` produces a run
       whose page shows the node tree, each `chat` step with its prompt and answer, token counts and the ending.
 - [ ] A question asked in PaperPilot's own web UI also appears as a run (output read from the root span).
-- [ ] The SDK's fake agent shows up the same way.
+- [x] The SDK's fake agent shows up the same way.
+
+## What was built (2026-10-04)
+
+- `otlp/decode.py` decodes protobuf and OTLP/JSON (hex ids converted for protobuf's JSON mapping) through the same
+  message, so both encodings give identical spans; `otlp/receiver.py` adds gzip/deflate, the 16 MB limit (413), 415
+  for other content types and 400 for undecodable bodies.
+- `otlp/genai.py` has the five adapters. The current-conventions adapter reads the v1.37 attribute names (messages
+  with `parts`) and the older token names (`prompt_tokens`); the event adapter reads the per-message events, with or
+  without a `gen_ai.event.content` body, and the oldest `gen_ai.content.prompt`/`completion` events.
+- `runs/assembler.py`: the in-memory per-trace state, the one-second tick, restart recovery from `runs.updated_ms`,
+  and completion in `runs/complete.py`. **Root rule, extended:** besides "no parent" and "parent is the span id
+  BlackBox sent", a span whose parent is missing counts as the root when it is a server or consumer span (the entry
+  point of a service) or its exporter flagged the parent as remote. That makes a question asked in PaperPilot's own
+  UI (server span with the web front end's remote parent) complete after the quiet period. A trace with no root at
+  all completes after `runs.orphan_seconds` (60). Late spans for a completed run are stored but don't reopen it.
+- Outer `chat` spans that only wrap other `chat` spans (an orchestrating client) are not steps.
+- Runs BlackBox starts: `runs/starter.py` stores the request envelope (`method`, `url`, `headers`, `body`) as the
+  entry request and the raw response as the output, and holds the run open (an in-flight call) until the response is
+  stored. A start that fails with no spans ends as `start_failed`.
+- SDK: `blackbox.sdk` (`init`, `agent_run`, `traced_chat`, `tool`/`tool_span`, `flush`, `shutdown`, and the
+  determinism shims that phase 6 uses); output and ending go on the root span as `blackbox.run.output` and
+  `blackbox.run.ending`. `init` can be called again (tests), each time with a fresh tracer provider.
+- UI: `/runs` (filters, live refresh over SSE), `/runs/{id}` (cards, input, output, steps with messages and tool
+  calls, a CSS span waterfall, raw spans), light/dark/auto theme via a cookie and no JavaScript of our own.
+- **PaperPilot, part 1 (trace exporter) is not done:** the PaperPilot repo and a .NET toolchain weren't available
+  where this was built. The three "Done when" items that need PaperPilot are open. The PaperPilot fixture in
+  `tests/fixtures/otlp/paperpilot-agentic.json` is synthetic (`tests/fixtures/paperpilot.py` builds it).
