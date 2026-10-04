@@ -240,6 +240,7 @@ async def live_page(request: Request, profile: str | None = None) -> HTMLRespons
             "insufficient": [r.reading.get("label") or r.rule for r in readings if r.state == "insufficient"],
             "charts": charts,
             "markers": markers[-10:],
+            "min_history": services.settings.live.rate_drop.min_baseline + services.settings.live.rate_drop.min_current,
             "now": now,
         },
     )

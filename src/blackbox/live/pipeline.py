@@ -29,7 +29,11 @@ log = logging.getLogger(__name__)
 
 
 async def live_after_complete(services: Services, run: Run) -> None:
-    """Completion handler (after the checker and metrics): queue the sampled judges, or go on to failure detection."""
+    """Completion handler (after the checker and metrics): queue the sampled judges, or go on to failure detection.
+    Runs outside the watched sources (replays, suites) are only checked for failure: no live judging, no detectors."""
+    if run.source not in services.settings.live.sources:
+        await failures_after_complete(services, run)
+        return
     plan = await plan_judges(services, run)
     if plan.judges:
         payload = {"profile": run.profile, "judges": plan.judges, "calls": plan.calls, "reason": plan.reason}

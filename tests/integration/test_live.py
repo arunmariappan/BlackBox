@@ -60,7 +60,7 @@ async def add_scored_run(services: Services, t_ms: int, passed: bool, **fields: 
         trace_id=fields.pop("trace_id", None) or trace_id(),
         profile="opsdesk",
         status="complete",
-        source="live",
+        source=fields.pop("source", "live"),
         started_ms=t_ms - 1000,
         ended_ms=t_ms,
         updated_ms=t_ms,
@@ -233,6 +233,8 @@ async def test_sampling_respects_the_hourly_budget(services: Services) -> None:
     unsampled = next(t for t in (trace_id() for _ in range(100)) if not is_sampled(t, 0.5))
     flagged = await add_scored_run(services, BASE, True, trace_id=unsampled, ending="max_steps")
     assert (await plan_judges(services, flagged)).reason == "flagged"
+    replay = await add_scored_run(services, BASE, True, source="replay", ending="max_steps")
+    await live_after_complete(services, replay)  # replays are never judged live, even when flagged
     runs = [await add_scored_run(services, BASE + i, True) for i in range(40)]
     for r in runs:
         await live_after_complete(services, r)

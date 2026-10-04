@@ -37,7 +37,7 @@
     <td><span class="badge {% if r.state == 'alarm' %}bad{% elif r.state == 'hold' %}warn{% else %}ok{% endif %}">{{ r.state }}</span></td>
   </tr>
   {% else %}
-  <tr><td colspan="6" class="empty">Not enough {{ profile }} runs yet: detectors need {{ 38 }} or more completed live or traffic runs.</td></tr>
+  <tr><td colspan="6" class="empty">Not enough {{ profile }} runs yet: detectors need {{ min_history }} or more completed live or traffic runs.</td></tr>
   {% endfor %}
   </tbody>
 </table>
