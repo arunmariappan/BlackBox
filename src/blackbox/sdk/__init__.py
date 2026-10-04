@@ -40,6 +40,7 @@ __all__ = [
     "current_trace_id",
     "flush",
     "init",
+    "node",
     "now",
     "random",
     "shutdown",
@@ -212,6 +213,15 @@ def agent_run(
     finally:
         if token is not None:
             context.detach(token)
+
+
+@contextlib.contextmanager
+def node(name: str, **attributes: Any) -> Iterator[Span]:
+    """A span for one node (step) of the agent, e.g. `plan` or `answer`; a profile's `node_spans` names them."""
+    with _state.tracer.start_as_current_span(name, kind=SpanKind.INTERNAL) as span:
+        for key, value in attributes.items():
+            span.set_attribute(key, value if isinstance(value, str | bool | int | float) else _json(value))
+        yield span
 
 
 # Model calls --------------------------------------------------------------------------------------------------------

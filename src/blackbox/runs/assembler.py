@@ -121,6 +121,7 @@ class RunAssembler:
         self._task: asyncio.Task[None] | None = None
         self._completions: set[asyncio.Task[CompletionResult | None]] = set()
         self.on_complete: list[Callable[[CompletionResult], Any]] = []
+        self._waiters: dict[str, list[asyncio.Future[CompletionResult]]] = {}
 
     # Lifecycle --------------------------------------------------------------------------------------------------
 
@@ -293,6 +294,12 @@ class RunAssembler:
     def in_flight(self) -> int:
         return sum(state.in_flight for state in self._states.values())
 
+    def completion(self, trace_id: str) -> asyncio.Future[CompletionResult]:
+        """A future that resolves when the run of `trace_id` completes (or is deleted, or fails assembly)."""
+        future: asyncio.Future[CompletionResult] = asyncio.get_running_loop().create_future()
+        self._waiters.setdefault(trace_id, []).append(future)
+        return future
+
     def open_count(self) -> int:
         return len(self._states)
 
@@ -346,6 +353,9 @@ class RunAssembler:
             self._bus.publish("run.completed", run_id=result.run_id, trace_id=state.trace_id, outcome=result.outcome)
         for callback in self.on_complete:
             callback(result)
+        for future in self._waiters.pop(state.trace_id, []):
+            if not future.done():
+                future.set_result(result)
         return result
 
     async def _mark_failed(self, state: TraceState, exc: Exception) -> None:

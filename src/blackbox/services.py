@@ -32,6 +32,8 @@ class Services:
     tasks: set[asyncio.Task[Any]] = field(default_factory=set)
     health_hooks: list[Callable[[], Awaitable[dict[str, Any]]]] = field(default_factory=list)
     proxy: Proxy | None = None
+    # Each returns extra fields for a replay's fidelity report (judges in phase 5, metrics in phase 7).
+    report_hooks: list[Callable[..., Awaitable[dict[str, Any]]]] = field(default_factory=list)
 
     @classmethod
     async def create(

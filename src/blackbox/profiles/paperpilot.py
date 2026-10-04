@@ -113,3 +113,41 @@ class PaperPilotProfile(Profile):
         if request is not None and request.status_code == "error":
             return "error"
         return None
+
+    # Replay ---------------------------------------------------------------------------------------------------------
+
+    COMPARED_FIELDS = ("answer", "sources", "reasoning_steps", "retrieval_attempts", "chunks_used", "search_mode")
+
+    def compare_outputs(self, source: Any, replay: Any) -> dict[str, Any]:
+        """Compare the fields that matter; `trace_id` differs by design and is ignored."""
+        a = source if isinstance(source, dict) else {}
+        b = replay if isinstance(replay, dict) else {}
+        fields = {
+            key: {"equal": a.get(key) == b.get(key), "source": a.get(key), "replay": b.get(key)}
+            for key in self.COMPARED_FIELDS
+        }
+        equal = all(f["equal"] for f in fields.values()) if (a or b) else source == replay
+        return {"equal": equal, "fields": fields}
+
+    def rebuild_input(self, ctx: RunContext) -> StartRequest | None:
+        """A question asked in PaperPilot's own UI: rebuild the request from `langfuse.trace.input` and the trace
+        metadata (`top_k`, `use_hybrid`, `model`)."""
+        span = self._request_span(ctx)
+        if span is None:
+            return None
+        view = ctx.view(span)
+        query = view.trace_input
+        if isinstance(query, dict):
+            query = query.get("query", query.get("question"))
+        if not isinstance(query, str):
+            return None
+        meta = view.metadata
+        run_input: dict[str, Any] = {
+            "query": query,
+            "top_k": int(meta.get("top_k", self.options.get("top_k", 3))),
+            "use_hybrid": bool(meta.get("use_hybrid", self.options.get("use_hybrid", True))),
+            "model": str(meta.get("model", self.options.get("model", "qwen3.5:4b"))),
+        }
+        if meta.get("categories"):
+            run_input["categories"] = meta["categories"]
+        return self.build_request(run_input)

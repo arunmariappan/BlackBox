@@ -9,7 +9,10 @@ from blackbox.otlp.decode import SpanData
 from blackbox.runs.context import ExchangeData, RunContext, StepDraft
 
 if TYPE_CHECKING:
+    from blackbox.proxy.matching import Normaliser
+    from blackbox.proxy.sessions import ReplaySession
     from blackbox.proxy.views import ExchangeView
+    from blackbox.services import Services
 
 
 @dataclass
@@ -121,3 +124,50 @@ class Profile:
         if root is not None and root.status_code == "error":
             return "error"
         return None
+
+    # Replay ---------------------------------------------------------------------------------------------------------
+
+    def normalisers(self, upstream: str) -> list[Normaliser]:
+        """Request normalisers for matching on `upstream` (none by default: exact means exact).
+
+        Profiles may also take them from options: `normalisers = {ollama = [{mask = "<regex>", with = "<ts>"},
+        {drop = "$.request_id"}]}`.
+        """
+        from blackbox.proxy.matching import DropJsonPath, MaskRegex
+
+        out: list[Normaliser] = []
+        for item in (self.options.get("normalisers") or {}).get(upstream, []):
+            if "mask" in item:
+                out.append(MaskRegex(item["mask"], item.get("with", "<masked>")))
+            elif "drop" in item:
+                out.append(DropJsonPath(item["drop"]))
+        return out
+
+    def rebuild_input(self, ctx: RunContext) -> StartRequest | None:
+        """The entry request of a run BlackBox didn't start, rebuilt from its spans (None: can't)."""
+        return None
+
+    async def prepare(self, session: ReplaySession, services: Services) -> None:
+        """Get ready for a replay or fork (OpsDesk creates the session's own sandbox here)."""
+        return None
+
+    def replay_request(self, request: StartRequest, session: ReplaySession) -> StartRequest:
+        """The entry request a replay sends (OpsDesk points it at the session's sandbox)."""
+        return request
+
+    def compare_outputs(self, source: Any, replay: Any) -> dict[str, Any]:
+        """Compare a source run's output with its replay's. Ignores `trace_id`, which differs by design."""
+
+        def strip(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {k: strip(v) for k, v in value.items() if k != "trace_id"}
+            if isinstance(value, list):
+                return [strip(v) for v in value]
+            return value
+
+        a, b = strip(source), strip(replay)
+        fields: dict[str, Any] = {}
+        if isinstance(a, dict) and isinstance(b, dict):
+            for key in sorted(set(a) | set(b)):
+                fields[key] = {"equal": a.get(key) == b.get(key), "source": a.get(key), "replay": b.get(key)}
+        return {"equal": a == b, "fields": fields}
