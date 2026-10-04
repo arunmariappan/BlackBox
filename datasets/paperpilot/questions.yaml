@@ -1,0 +1,32 @@
+# PaperPilot's question set (phase 5). 50 questions when complete:
+#   30 answerable from the corpus  → expected `answered`, with citations (drafted by `blackbox dataset draft
+#      paperpilot` from papers sampled from PaperPilot's OpenSearch index, then reviewed and edited by hand);
+#   10 out of scope                → expected `out_of_scope`;
+#   10 in scope but not in the corpus → expected `max_attempts` (AI topics no indexed paper covers).
+# The answerable group needs the index, so it is drafted on the PC where PaperPilot runs; until then it is empty.
+# Questions marked `status: draft` are skipped by `blackbox run paperpilot --dataset`.
+# "not_in_corpus" questions must be checked against the index before they are marked reviewed.
+name: paperpilot-questions
+profile: paperpilot
+description: Questions with the ending PaperPilot's agentic RAG should reach.
+questions:
+  - {id: oos-01, group: out_of_scope, question: "How long should I boil an egg for a runny yolk?", expected_ending: out_of_scope}
+  - {id: oos-02, group: out_of_scope, question: "What is 17 times 23?", expected_ending: out_of_scope}
+  - {id: oos-03, group: out_of_scope, question: "Who won the 2018 FIFA World Cup?", expected_ending: out_of_scope}
+  - {id: oos-04, group: out_of_scope, question: "What is a good recipe for vegetable lasagne?", expected_ending: out_of_scope}
+  - {id: oos-05, group: out_of_scope, question: "How do I renew my passport?", expected_ending: out_of_scope}
+  - {id: oos-06, group: out_of_scope, question: "What's the capital of Australia?", expected_ending: out_of_scope}
+  - {id: oos-07, group: out_of_scope, question: "Can you recommend a hiking trail near Zurich?", expected_ending: out_of_scope}
+  - {id: oos-08, group: out_of_scope, question: "How many calories are in a banana?", expected_ending: out_of_scope}
+  - {id: oos-09, group: out_of_scope, question: "Write a birthday poem for my sister.", expected_ending: out_of_scope}
+  - {id: oos-10, group: out_of_scope, question: "What are the rules of cricket's LBW?", expected_ending: out_of_scope}
+  - {id: nic-01, group: not_in_corpus, question: "How does the Q-Former in BLIP-3 compress video tokens over long horizons?", expected_ending: max_attempts, status: draft, note: "check the index"}
+  - {id: nic-02, group: not_in_corpus, question: "What reward model did the 2031 Lumen-RL paper use for theorem proving?", expected_ending: max_attempts, status: draft, note: "fictional paper; check the index"}
+  - {id: nic-03, group: not_in_corpus, question: "Which tokenizer does the Kestrel-9 speech model use for Swahili?", expected_ending: max_attempts, status: draft, note: "fictional model; check the index"}
+  - {id: nic-04, group: not_in_corpus, question: "How does hyperbolic dropout regularise graph transformers for protein docking?", expected_ending: max_attempts, status: draft, note: "check the index"}
+  - {id: nic-05, group: not_in_corpus, question: "What curriculum did the AlphaWeave agent use to learn knitting patterns?", expected_ending: max_attempts, status: draft, note: "fictional; check the index"}
+  - {id: nic-06, group: not_in_corpus, question: "How do spiking neural networks handle attention on neuromorphic FPGAs in 2030 benchmarks?", expected_ending: max_attempts, status: draft, note: "check the index"}
+  - {id: nic-07, group: not_in_corpus, question: "What loss function does the Orchid diffusion model use for 3D textile simulation?", expected_ending: max_attempts, status: draft, note: "fictional; check the index"}
+  - {id: nic-08, group: not_in_corpus, question: "How is federated RLHF applied to tractor autopilots in the AgriLM paper?", expected_ending: max_attempts, status: draft, note: "fictional; check the index"}
+  - {id: nic-09, group: not_in_corpus, question: "Which retrieval method does the Marmot-RAG system use for Old Norse sagas?", expected_ending: max_attempts, status: draft, note: "fictional; check the index"}
+  - {id: nic-10, group: not_in_corpus, question: "How does quantum annealing tune learning rates in the QuAnt-Opt optimiser?", expected_ending: max_attempts, status: draft, note: "check the index"}
