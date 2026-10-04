@@ -115,39 +115,39 @@ request is made (its span hasn't ended or been exported yet), so live patches ma
 ## Tasks
 
 ### 4.1 Sessions and matching
-- [ ] `blackbox/proxy/sessions.py`: session table, expiry, mode state (`on_tape`, `live`), used-step tracking.
-- [ ] `blackbox/proxy/matching.py`: canonical requests, normalisers, match keys (tape keys cached per session),
+- [x] `blackbox/proxy/sessions.py`: session table, expiry, mode state (`on_tape`, `live`), used-step tracking.
+- [x] `blackbox/proxy/matching.py`: canonical requests, normalisers, match keys (tape keys cached per session),
       candidate choice, divergence diffs.
-- [ ] Tape serving with chunk timing and `speed`.
-- [ ] Migration: `exchanges.sent_request_blob`.
+- [x] Tape serving with chunk timing and `speed`.
+- [x] Migration: `exchanges.sent_request_blob`.
 
 ### 4.2 Overrides
-- [ ] Model override for live model calls.
-- [ ] Patches: YAML schema (Pydantic), matching by `tape_node`, `step` or `content_regex`, JSONPath edit with `replace`
+- [x] Model override for live model calls.
+- [x] Patches: YAML schema (Pydantic), matching by `tape_node`, `step` or `content_regex`, JSONPath edit with `replace`
       or `set`, patched exchanges marked.
 
 ### 4.3 Runner and report
-- [ ] `blackbox/replay/runner.py` and `blackbox replay` with every option above.
-- [ ] Profile hooks: `rebuild_input(run)`, `prepare(session)`, `compare_outputs(a, b)`, `normalisers` per upstream;
+- [x] `blackbox/replay/runner.py` and `blackbox replay` with every option above.
+- [x] Profile hooks: `rebuild_input(run)`, `prepare(session)`, `compare_outputs(a, b)`, `normalisers` per upstream;
       PaperPilot's versions.
-- [ ] Fidelity report in the session row, in the CLI (Rich table) and on the session page.
+- [x] Fidelity report in the session row, in the CLI (Rich table) and on the session page.
 
 ### 4.4 UI
-- [ ] Replay and fork actions, fork form with model choice and message editor, session page, links between runs.
+- [x] Replay and fork actions, fork form with model choice and message editor, session page, links between runs.
 
 ## Tests
 All without a GPU: a fake agent in Python makes model calls through the proxy to a fake model upstream that counts its
 calls.
-- [ ] Record, then replay exactly: identical output, zero calls reach the fake upstream.
-- [ ] Change the fake agent's prompt at its third call: `exact` reports a divergence at step 3 with the right message
+- [x] Record, then replay exactly: identical output, zero calls reach the fake upstream.
+- [x] Change the fake agent's prompt at its third call: `exact` reports a divergence at step 3 with the right message
       diff; `auto_fork` serves steps 1–2 from the tape and sends 3 onwards live (the upstream sees exactly those).
-- [ ] `fork` from step 2 with a model override: the upstream sees the new model only from step 2.
-- [ ] Patches matched by `tape_node`, by `step` and by `content_regex` each change only the intended request.
-- [ ] A timestamp in the prompt: diverges without the normaliser, matches with it.
-- [ ] Streamed tape at `speed = 1`: total time within 20% of the recording; at `speed = 0`: under 100 ms.
-- [ ] Two sessions replaying at once don't mix up their tapes.
-- [ ] A call with an expired session's trace id gets 410.
-- [ ] PaperPilot bundle (from phase 3): a test client re-sends the bundle's recorded requests in order with a session's
+- [x] `fork` from step 2 with a model override: the upstream sees the new model only from step 2.
+- [x] Patches matched by `tape_node`, by `step` and by `content_regex` each change only the intended request.
+- [x] A timestamp in the prompt: diverges without the normaliser, matches with it.
+- [x] Streamed tape at `speed = 1`: total time within 20% of the recording; at `speed = 0`: under 100 ms.
+- [x] Two sessions replaying at once don't mix up their tapes.
+- [x] A call with an expired session's trace id gets 410.
+- [x] PaperPilot bundle (from phase 3): a test client re-sends the bundle's recorded requests in order with a session's
       trace id, and every one is served from the tape. This checks matching against real PaperPilot bodies without
       running .NET.
 
@@ -159,3 +159,26 @@ calls.
       the answer diff.
 - [ ] A fork with a patched guardrail prompt shows the new score, and the new ending when it crosses the threshold.
 - [ ] **MVP, part 2:** "replay one exactly" is shown in the UI with its fidelity report.
+
+## What was built (2026-10-04)
+
+- `proxy/sessions.py` (sessions, tape matching and serving), `proxy/matching.py` (match keys, `MaskRegex`,
+  `DropJsonPath`, message and JSON diffs), `replay/patches.py`, `replay/runner.py`, `replay/report.py`,
+  `web/replay.py` (API, session page, fork form) and `blackbox replay`. Migration `0002` adds
+  `exchanges.sent_request_blob`.
+- Decisions on details the plan left open:
+  - A request's tape step is found by match key before patching; when nothing matches, by the next unused tape
+    exchange on the same path. **Once a session is live, the k-th request on an upstream lines up with the k-th tape
+    step on it** (found by a test: without this a step-2 patch also hit steps 3 and 4).
+  - Exact mode answers a divergence with 409 and stores that exchange as `served_from = "blocked"`;
+    `--lenient` serves the next unused tape exchange and flags the divergence as lenient.
+  - Patches: every condition in `match` must hold; `set` on a missing path creates it.
+  - Sessions are not kept across a restart: on start, sessions still `active` are marked `expired` and their trace
+    ids get 410.
+  - The SDK's recorded values are served at `GET /api/sessions/{id}/values` already (phase 6 uses them).
+  - `exact` in the report means: every step from the tape, nothing diverged, same number of steps, outputs equal.
+- The fork form lists Ollama's models from its `/api/tags` (the `ollama` upstream's target); editing a message
+  makes a `set` patch for that step (`$.messages[i].content`).
+- **Not done here:** the four "Done when" items need PaperPilot running. Matching against PaperPilot-shaped bodies
+  is covered by the synthetic run (`test_paperpilot_tape_serves_every_recorded_request`), and a run asked in
+  PaperPilot's own UI rebuilds its input from `langfuse.trace.input` and the trace metadata.

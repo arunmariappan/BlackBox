@@ -83,6 +83,8 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
 - BlackBox's own outgoing HTTP calls use `net.make_client` (an untraced transport): in a process where the SDK
   instrumented httpx, instrumentation would otherwise overwrite the `traceparent` the proxy forwards or the runner
   sends on purpose.
+- Tests that set `traceparent` by hand must send with `blackbox.net.make_client` once the SDK has instrumented httpx
+  in the test process; an ordinary httpx client gets a fresh `traceparent` injected over theirs.
 - `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
   aligned comments stay as written.
 - The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one
