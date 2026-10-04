@@ -10,9 +10,12 @@ It is hand-written (spike S2 could not run where this was built). Replace it wit
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from blackbox.otlp.decode import SpanData, encode_json
+
+if TYPE_CHECKING:
+    from blackbox.store import Store
 
 TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736"
 REMOTE_PARENT = "00f067aa0ba902b7"
@@ -344,3 +347,85 @@ def write_fixture() -> None:
 
 if __name__ == "__main__":
     write_fixture()
+
+
+async def insert_run(store: Store, *, started_by_blackbox: bool = True) -> str:
+    """Put the synthetic run into `store` (spans, exchanges, and the entry request and response when BlackBox
+    started it), complete it, and return its run id."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from blackbox.config import RunsConfig
+    from blackbox.events import EventBus
+    from blackbox.profiles import default_registry
+    from blackbox.proxy.http import request_key
+    from blackbox.runs.assembler import RunAssembler
+    from blackbox.store import PreparedBlob, insert_blob
+    from blackbox.store.models import Exchange, Run
+    from blackbox.util import new_id
+
+    built = build()
+    run_id = new_id()
+    t0_ms = T0_NS // 1_000_000
+    blobs: list[PreparedBlob] = []
+    exchanges = []
+    for seq, call in enumerate(sorted(built.calls, key=lambda c: c.start_ms), start=1):
+        request = json.dumps(call.request).encode()
+        response = json.dumps(call.response).encode()
+        request_blob, response_blob = PreparedBlob.of(request, "application/json"), PreparedBlob.of(response)
+        blobs += [request_blob, response_blob]
+        exchanges.append(
+            Exchange(
+                id=new_id(),
+                trace_id=TRACE_ID,
+                parent_span_id=call.span_id,
+                upstream=call.upstream,
+                seq=seq,
+                method="POST",
+                path=call.path,
+                request_headers={"content-type": "application/json", "traceparent": f"00-{TRACE_ID}-{call.span_id}-01"},
+                request_blob=request_blob.sha256,
+                request_key=request_key("POST", call.path, "", request),
+                status=200,
+                response_headers={"content-type": "application/json"},
+                response_blob=response_blob.sha256,
+                started_ms=t0_ms + call.start_ms,
+                first_byte_ms=t0_ms + call.end_ms - 5,
+                ended_ms=t0_ms + call.end_ms,
+            )
+        )
+    entry = response_body = None
+    if started_by_blackbox:
+        body = {"query": QUESTION, "top_k": 3, "use_hybrid": True, "model": MODEL}
+        envelope = {"method": "POST", "url": "http://127.0.0.1:8100/api/v1/ask-agentic", "headers": {}, "body": body}
+        entry = PreparedBlob.of(json.dumps(envelope).encode(), "application/json")
+        response_body = PreparedBlob.of(json.dumps(OUTPUT).encode(), "application/json")
+        blobs += [entry, response_body]
+
+    async def op(session: AsyncSession) -> None:
+        for blob in blobs:
+            await insert_blob(session, blob)
+        session.add(
+            Run(
+                id=run_id,
+                trace_id=TRACE_ID,
+                profile="paperpilot" if started_by_blackbox else None,
+                status="open",
+                source="live",
+                started_ms=t0_ms,
+                updated_ms=t0_ms,
+                entry_request_blob=entry.sha256 if entry else None,
+                output_blob=response_body.sha256 if response_body else None,
+                remote_parent_span_id=REMOTE_PARENT if started_by_blackbox else None,
+                tags={"fixture": "synthetic"},
+            )
+        )
+        session.add_all(exchanges)
+
+    await store.write(op)
+    clock = [t0_ms + 60_000]
+    assembler = RunAssembler(store, default_registry(), EventBus(), RunsConfig(), clock=lambda: clock[0])
+    await assembler.ingest(built.spans)
+    clock[0] += 10_000
+    results = await assembler.tick()
+    assert [r.outcome for r in results] == ["complete"], results
+    return run_id
