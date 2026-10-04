@@ -3,10 +3,13 @@
 import json
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from blackbox.otlp.decode import SpanData
-from blackbox.runs.context import RunContext, StepDraft
+from blackbox.runs.context import ExchangeData, RunContext, StepDraft
+
+if TYPE_CHECKING:
+    from blackbox.proxy.views import ExchangeView
 
 
 @dataclass
@@ -56,6 +59,10 @@ class Profile:
         for span in chain:
             if span.name in self.node_spans:
                 return span.name
+        return None
+
+    def exchange_view(self, exchange: ExchangeData, ctx: RunContext) -> ExchangeView | None:
+        """A view of an exchange this profile understands better than the generic parsers (None: use them)."""
         return None
 
     # Starting runs --------------------------------------------------------------------------------------------------
