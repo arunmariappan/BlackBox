@@ -17,20 +17,20 @@ design, into this plan.
 ## Tasks
 
 ### 0.1 Repository
-- [ ] The repo is cloned at `D:\ai_workspace\BlackBox` with the repo-local identity `Arun Mariappan Karunanithi
+- [x] The repo is cloned at `D:\ai_workspace\BlackBox` with the repo-local identity `Arun Mariappan Karunanithi
       <2525449+arunmariappan@users.noreply.github.com>` (done 2026-10-05). The plan is in `docs/plan/`.
-- [ ] `.gitignore` (Python, `data/`, `.env`, `.venv/`), `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`.
-- [ ] `README.md`: one paragraph on what BlackBox is, a "status: in development" line, a link to the plan.
-- [ ] `CLAUDE.md`: commands, layout and gotchas. Start small; each phase adds to it.
+- [x] `.gitignore` (Python, `data/`, `.env`, `.venv/`), `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`.
+- [x] `README.md`: one paragraph on what BlackBox is, a "status: in development" line, a link to the plan.
+- [x] `CLAUDE.md`: commands, layout and gotchas. Start small; each phase adds to it.
 
 ### 0.2 Project and tooling
-- [ ] `uv init --package` layout with `src/blackbox` and `src/opsdesk` in one project; `.python-version` = `3.14`.
-- [ ] `pyproject.toml`: console scripts `blackbox = "blackbox.cli:app"` and `opsdesk = "opsdesk.cli:app"`; ruff
+- [x] `uv init --package` layout with `src/blackbox` and `src/opsdesk` in one project; `.python-version` = `3.14`.
+- [x] `pyproject.toml`: console scripts `blackbox = "blackbox.cli:app"` and `opsdesk = "opsdesk.cli:app"`; ruff
       (line length 120, rules `E,F,I,UP,B,SIM,ASYNC,RUF`), mypy strict on `src/`, pytest with `asyncio_mode = "auto"`.
-- [ ] `uv add` every runtime package from README §4 now, even if unused yet, so spike S4 proves they all install on
+- [x] `uv add` every runtime package from README §4 now, even if unused yet, so spike S4 proves they all install on
       3.14.
-- [ ] `blackbox --version` and `blackbox --help` work (Typer app with no real commands yet).
-- [ ] `.github/workflows/ci.yml`: on push and pull request, Ubuntu, `astral-sh/setup-uv`, `uv sync --locked`,
+- [x] `blackbox --version` and `blackbox --help` work (Typer app with no real commands yet).
+- [x] `.github/workflows/ci.yml`: on push and pull request, Ubuntu, `astral-sh/setup-uv`, `uv sync --locked`,
       `ruff format --check`, `ruff check`, `mypy`, `pytest`. One trivial test so the pipeline is green.
 
 ### 0.3 Spike S1: trace propagation through PaperPilot (risk R1)
@@ -83,3 +83,16 @@ forwards to Ollama and prints each request's headers, path and body size.
 - [ ] `uv run blackbox --help` works on Windows, and CI is green on GitHub.
 - [ ] `CLAUDE.md` records the answers to S1–S4, and any change they force is written into the affected phase files.
 - [ ] The temporary `ConnectionStrings:ollama` user secret is removed from PaperPilot's AppHost.
+
+## What was built (2026-10-04)
+
+- Repo files, the uv project (`src/blackbox`, `src/opsdesk`, hatchling build because uv's backend takes one
+  top-level module), every package from README §4 locked in `uv.lock`, the Typer CLIs `blackbox` and `opsdesk`, and
+  the CI workflow (`uv sync --locked`, format, lint, mypy strict, pytest).
+- The work ran in a Linux cloud container with no access to Ollama, PaperPilot, HuggingFace or the Windows PC, so:
+  - **S4** was checked on Linux only: every package installs and imports on CPython 3.14.8 (`onnxruntime` 1.30 has
+    3.14 wheels). Windows still needs one `uv sync`.
+  - **S1, S2 and S3 are still open.** They need the running PaperPilot stack and Ollama. The code built in phases 1–9
+    assumes their expected answers and keeps the R1 fallback (`X-BlackBox-Session`) available; `CLAUDE.md` lists
+    what to check.
+  - No PaperPilot user secret was set, so there is nothing to remove.

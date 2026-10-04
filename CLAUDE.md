@@ -24,7 +24,7 @@ tests and "done when" items to tick, and ends up recording what was actually bui
 - When a decision changes, update the plan (decisions D1–D17, risks R1–R11 in docs/plan/README.md) in the same
   commit.
 
-## Commands (planned; they exist once phase 0 lands)
+## Commands (later phases add the ones marked with a phase)
 
 ```bash
 uv sync                                   # install (Python 3.14, uv.lock)
@@ -72,6 +72,22 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
 
 ## Gotchas
 
-- Git here has `core.autocrlf=true`; keep files LF (`.gitattributes` arrives in phase 0).
-- Spike findings from phase 0 (PaperPilot's trace propagation, its GenAI span attributes, Ollama structured output from
-  Python, 3.14 wheels) are recorded here once known.
+- Git here has `core.autocrlf=true`; keep files LF (`.gitattributes` enforces `eol=lf`).
+- `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
+  aligned comments stay as written.
+- The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one
+  top-level module.
+
+## Spike findings (phase 0)
+
+- **S4, Python 3.14 wheels:** every package in plan §4 installs and imports on CPython 3.14.8 under Linux
+  (`onnxruntime` 1.30, `scikit-learn` 1.9, `scipy` 1.18, `numpy` 2.5, `fastembed` 0.8); `compression.zstd` is in the
+  standard library. D1 stays at 3.14. Still to confirm on Windows: `uv sync` and
+  `uv run python -c "import fastembed, sklearn, scipy, onnxruntime"`.
+- **S1 (trace propagation), S2 (PaperPilot span attributes), S3 (Ollama from Python): not run yet.** Phase 0 to 9
+  were built in a cloud container that cannot reach Ollama, PaperPilot or HuggingFace. Run them on this PC as written
+  in `docs/plan/phase-0-bootstrap.md` and record the answers here. Until then the code assumes the expected answers
+  (the incoming `traceparent` sets PaperPilot's trace id and outgoing calls carry it, with the HttpClient span as
+  parent) and keeps the R1 fallback cheap: the proxy also accepts an `X-BlackBox-Session` header.
+- The `ollama` Python client (0.6) takes `think`, `format` (a JSON schema dict) and `tools` on `chat`, and is built on
+  `httpx`, so the SDK's httpx instrumentation carries `traceparent` to the proxy.
