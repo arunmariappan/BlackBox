@@ -79,9 +79,24 @@ type StartHook = Callable[[Running], Awaitable[None]]
 START_HOOKS: list[StartHook] = []
 
 
+async def start_worker(running: Running) -> None:
+    from blackbox.live.worker import Worker, profile_after_complete, run_completed
+
+    services = running.services
+    worker = Worker(services)
+    worker.register("run_completed", run_completed)
+    services.completion_handlers.insert(0, profile_after_complete)
+    services.worker = worker
+    await worker.start()
+    running.stoppers.append(worker.stop)
+
+
 def _load_start_hooks() -> None:
     """Import the modules that add start hooks (kept out of module import time to avoid import cycles)."""
     import blackbox.proxy.manager  # noqa: F401
+
+    if start_worker not in START_HOOKS:
+        START_HOOKS.append(start_worker)
 
 
 async def start_blackbox(

@@ -19,7 +19,9 @@ from blackbox.runs.assembler import RunAssembler
 from blackbox.store import Store
 
 if TYPE_CHECKING:
+    from blackbox.live.worker import Worker
     from blackbox.proxy.core import Proxy
+    from blackbox.store.models import Run
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +40,9 @@ class Services:
     tasks: set[asyncio.Task[Any]] = field(default_factory=set)
     health_hooks: list[Callable[[], Awaitable[dict[str, Any]]]] = field(default_factory=list)
     proxy: Proxy | None = None
+    worker: Worker | None = None
+    # Run after every completed run, in order, by the worker's `run_completed` job (checker, metrics, ...).
+    completion_handlers: list[Callable[[Services, Run], Awaitable[None]]] = field(default_factory=list)
     # Each returns extra fields for a replay's fidelity report (judges in phase 5, metrics in phase 7).
     report_hooks: list[Callable[..., Awaitable[dict[str, Any]]]] = field(default_factory=list)
     # Each returns run id → extra badges for the runs list (metric flags in phase 7).
