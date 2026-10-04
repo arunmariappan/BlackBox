@@ -69,8 +69,10 @@ class Services:
             judge_runner=JudgeRunner(store, llm),
         )
         from blackbox.judges.replay import judge_report
+        from blackbox.metrics.hooks import metric_badges, metric_changes
 
-        services.report_hooks.append(judge_report)
+        services.report_hooks.extend([judge_report, metric_changes])
+        services.badge_hooks.append(metric_badges)
         return services
 
     async def start(self) -> None:

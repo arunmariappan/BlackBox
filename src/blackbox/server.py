@@ -81,11 +81,12 @@ START_HOOKS: list[StartHook] = []
 
 async def start_worker(running: Running) -> None:
     from blackbox.live.worker import Worker, profile_after_complete, run_completed
+    from blackbox.metrics.hooks import metrics_after_complete
 
     services = running.services
     worker = Worker(services)
     worker.register("run_completed", run_completed)
-    services.completion_handlers.insert(0, profile_after_complete)
+    services.completion_handlers[:0] = [profile_after_complete, metrics_after_complete]  # checker before metrics
     services.worker = worker
     await worker.start()
     running.stoppers.append(worker.stop)

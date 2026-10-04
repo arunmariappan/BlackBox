@@ -732,3 +732,26 @@ def dataset_draft(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(yaml.safe_dump({"questions": drafted}, sort_keys=False, allow_unicode=True), encoding="utf-8")
     console.print(f"wrote {len(drafted)} drafts to {out}; review them, then move them into questions.yaml")
+
+
+metrics_app = typer.Typer(help="Run metrics.", no_args_is_help=True)
+app.add_typer(metrics_app, name="metrics")
+
+
+@metrics_app.command("recompute")
+def metrics_recompute(
+    profile: Annotated[str | None, typer.Option("--profile", help="Only runs of this profile.")] = None,
+    limit: Annotated[int, typer.Option("--limit", help="At most this many runs, newest first.")] = 100_000,
+) -> None:
+    """Recompute every stored run's metrics (after a metric's version changed); old scores are replaced."""
+    from blackbox.metrics import compute_and_store
+    from blackbox.profiles import default_registry
+
+    async def go(store: Store) -> int:
+        registry = default_registry(settings().profiles)
+        runs = await store.reader.runs(profile=profile, status="complete", limit=limit)
+        for run in runs:
+            await compute_and_store(store, registry, run)
+        return len(runs)
+
+    console.print(f"recomputed metrics for {run_with_store(go)} runs")
