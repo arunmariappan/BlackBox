@@ -284,6 +284,21 @@ class Cluster(Base):
     updated_ms: Mapped[int]
 
 
+class ClusterSpace(Base):
+    """The feature space a profile's clusters live in: the one-hot vocabulary and weight used when they were made,
+    so a new failure can be placed in the same space and compared with their centres."""
+
+    __tablename__ = "cluster_spaces"
+
+    profile: Mapped[str] = mapped_column(primary_key=True)
+    vocabulary: Mapped[list[Any]] = mapped_column(default=list)
+    weight: Mapped[float]
+    embedder: Mapped[str]
+    dimensions: Mapped[int]
+    clustered_ms: Mapped[int]
+    stats: Mapped[dict[str, Any]] = mapped_column(default=dict)
+
+
 class Alert(Base):
     __tablename__ = "alerts"
 
