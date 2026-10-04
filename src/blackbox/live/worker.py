@@ -1,7 +1,9 @@
 """The worker: durable jobs from the `jobs` table, so a restart loses nothing.
 
-Each job kind has a handler. A failing job is retried with backoff up to `max_attempts` times, then left `failed`
-with its last error, listed in the UI. Jobs still `running` after a restart are put back in the queue.
+Each job kind has a handler. A failing job is retried with backoff (2, 4 s) up to three attempts, then left `failed`
+with its last error, listed in the UI (`/jobs`), and its kind's give-up handler runs, if it has one. Jobs still
+`running` after a restart are put back in the queue. A lane can have a gate that decides whether it may take a job now
+(the model lane waits for agent calls in flight, see `live.pipeline`).
 """
 
 import asyncio
@@ -79,7 +81,12 @@ async def enqueue(
 
 class Worker:
     def __init__(
-        self, services: Services, *, lanes: tuple[str, ...] = ("cpu", "model"), poll_seconds: float = 0.5
+        self,
+        services: Services,
+        *,
+        lanes: tuple[str, ...] = ("cpu", "model"),
+        poll_seconds: float = 0.5,
+        backoff_ms: int = 1000,
     ) -> None:
         self.services = services
         self.handlers: dict[str, Handler] = {}
@@ -87,7 +94,9 @@ class Worker:
         self.poll_seconds = poll_seconds
         self._tasks: list[asyncio.Task[None]] = []
         self._wake = asyncio.Event()
-        self.gates: dict[str, Callable[[], Awaitable[bool]]] = {}  # lane → "may a job run now?" (phase 9)
+        self.gates: dict[str, Callable[[], Awaitable[bool]]] = {}  # lane → "may a job run now?"
+        self.on_give_up: dict[str, Handler] = {}  # kind → called once a job of that kind has failed for good
+        self.backoff_ms = backoff_ms
         self.processed = 0
 
     def register(self, kind: str, handler: Handler) -> None:
@@ -168,7 +177,7 @@ class Worker:
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}\n{traceback.format_exc(limit=5)}"[-4000:]
             failed = job.attempts >= MAX_ATTEMPTS
-            delay = 0 if failed else 2**job.attempts * 1000
+            delay = 0 if failed else 2**job.attempts * self.backoff_ms
             log.warning("job %s (%s) failed, attempt %d: %s", job.id, job.kind, job.attempts, exc)
 
             async def op(session: AsyncSession) -> None:
@@ -185,6 +194,12 @@ class Worker:
 
             await self.services.store.write(op)
             self.services.bus.publish("job.failed" if failed else "job.retry", job_id=job.id, kind=job.kind)
+            give_up = self.on_give_up.get(job.kind)
+            if failed and give_up is not None:
+                try:
+                    await give_up(self.services, job)
+                except Exception:
+                    log.exception("give-up handler for job %s (%s) failed", job.id, job.kind)
             return
 
         async def done(session: AsyncSession) -> None:

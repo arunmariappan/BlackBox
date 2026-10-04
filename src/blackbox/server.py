@@ -79,21 +79,41 @@ type StartHook = Callable[[Running], Awaitable[None]]
 START_HOOKS: list[StartHook] = []
 
 
+async def start_live(running: Running) -> None:
+    """Alerts, live patches (a proxy request hook) and their header banners."""
+    services = running.services
+    if services.live is None:
+        return
+    live = services.live
+    await live.start()
+    running.app.state.banner_providers.append(lambda _: live.banners())
+
+    async def stop() -> None:
+        await live.stop()
+
+    running.stoppers.append(stop)
+
+
 async def start_worker(running: Running) -> None:
     from blackbox.clusters import jobs as failure_jobs
+    from blackbox.live import pipeline
     from blackbox.live.worker import Worker, profile_after_complete, run_completed
     from blackbox.metrics.hooks import metrics_after_complete
 
     services = running.services
     worker = Worker(services)
     worker.register("run_completed", run_completed)
-    worker.register("describe_failure", failure_jobs.describe_failure)
-    worker.register("recluster", failure_jobs.recluster)
-    # The checker, then metrics, then failure detection (which reads both).
+    worker.register("judge", pipeline.judge_job)
+    worker.on_give_up["judge"] = pipeline.judge_gave_up
+    worker.register("describe_failure", pipeline.then_detect(failure_jobs.describe_failure))
+    worker.register("recluster", pipeline.then_detect(failure_jobs.recluster))
+    worker.register("detect", pipeline.detect_job)
+    worker.gates["model"] = pipeline.ModelLaneGate(services)
+    # The checker, then metrics, then sampled judges (model lane) and failure detection, then the detectors.
     services.completion_handlers[:0] = [
         profile_after_complete,
         metrics_after_complete,
-        failure_jobs.failures_after_complete,
+        pipeline.live_after_complete,
     ]
     services.worker = worker
     await worker.start()
@@ -110,8 +130,9 @@ def _load_start_hooks() -> None:
     """Import the modules that add start hooks (kept out of module import time to avoid import cycles)."""
     import blackbox.proxy.manager  # noqa: F401
 
-    if start_worker not in START_HOOKS:
-        START_HOOKS.append(start_worker)
+    for hook in (start_live, start_worker):  # after the proxy: live patches hook into it
+        if hook not in START_HOOKS:
+            START_HOOKS.append(hook)
 
 
 async def start_blackbox(
