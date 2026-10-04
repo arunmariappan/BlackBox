@@ -45,6 +45,7 @@ class TraceState:
     entry_spans: set[str] = field(default_factory=set)  # server and consumer spans: entry points into a service
     in_flight: int = 0
     completing: bool = False
+    row_pending: bool = False  # the run row is still being written (a proxy call opened the run)
 
     def add_span(self, span: SpanData) -> None:
         self.parents[span.span_id] = span.parent_span_id
@@ -207,7 +208,9 @@ class RunAssembler:
                 await session.execute(insert(RecordedValue).on_conflict_do_nothing(), values)
             result = {}
             for trace_id, start in first_start.items():
-                run_id, status, remote, created = await _ensure_run(session, trace_id, now, start)
+                known = self._states.get(trace_id)
+                proposed = known.run_id if known is not None else None
+                run_id, status, remote, created = await _ensure_run(session, trace_id, now, start, proposed=proposed)
                 result[trace_id] = (run_id, status, remote, created)
             return result
 
@@ -234,10 +237,42 @@ class RunAssembler:
 
         run_id, status, remote, created = await self._store.write(op)
         if status == "open":
-            self._state(trace_id, run_id, remote, now)
+            self._state(trace_id, run_id, remote, now).run_id = run_id
         if created:
             self._bus.publish("run.created", run_id=run_id, trace_id=trace_id)
         return run_id
+
+    def open_call(self, trace_id: str) -> None:
+        """A proxy call for `trace_id` starts: count it in flight, and make sure the run exists without making the
+        call wait for a database write (the row is written in the background)."""
+        state = self._states.get(trace_id)
+        now = self._clock()
+        if state is None:
+            state = self._state(trace_id, new_id(), None, now)
+            state.row_pending = True
+            task = asyncio.create_task(self._write_row(state, now))
+            self._completions.add(task)
+            task.add_done_callback(self._completions.discard)
+        state.in_flight += 1
+        state.last_activity_ms = now
+
+    async def _write_row(self, state: TraceState, now: int) -> None:
+        async def op(session: AsyncSession) -> tuple[str, str, str | None, bool]:
+            return await _ensure_run(session, state.trace_id, now, None, proposed=state.run_id)
+
+        try:
+            run_id, status, remote, created = await self._store.write(op)
+        except Exception:
+            log.exception("could not create the run for trace %s", state.trace_id)
+            return
+        finally:
+            state.row_pending = False
+        state.run_id = run_id
+        state.remote_parent = state.remote_parent or remote
+        if status != "open" and self._states.get(state.trace_id) is state:
+            del self._states[state.trace_id]  # a late call for a completed run
+        if created:
+            self._bus.publish("run.created", run_id=run_id, trace_id=state.trace_id)
 
     def track(self, trace_id: str, run_id: str, remote_parent: str | None) -> None:
         """Register a run BlackBox created itself (its row already exists)."""
@@ -273,7 +308,7 @@ class RunAssembler:
     # Completion -------------------------------------------------------------------------------------------------
 
     def _ready(self, state: TraceState, now: int) -> bool:
-        if state.completing or state.in_flight > 0:
+        if state.completing or state.in_flight > 0 or state.row_pending:
             return False
         quiet = now - state.last_activity_ms
         if quiet < self._config.quiet_seconds * 1000:
@@ -330,11 +365,11 @@ class RunAssembler:
 
 
 async def _ensure_run(
-    session: AsyncSession, trace_id: str, now: int, start_ms: int | None
+    session: AsyncSession, trace_id: str, now: int, start_ms: int | None, proposed: str | None = None
 ) -> tuple[str, str, str | None, bool]:
     run = (await session.execute(select(Run).where(Run.trace_id == trace_id))).scalar_one_or_none()
     if run is None:
-        run_id = new_id()
+        run_id = proposed or new_id()
         session.add(Run(id=run_id, trace_id=trace_id, status="open", updated_ms=now, started_ms=start_ms, tags={}))
         return run_id, "open", None, True
     values: dict[str, Any] = {"updated_ms": now}

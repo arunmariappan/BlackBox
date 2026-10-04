@@ -4,7 +4,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -14,6 +14,9 @@ from blackbox.net import make_client
 from blackbox.profiles import ProfileRegistry, default_registry
 from blackbox.runs.assembler import RunAssembler
 from blackbox.store import Store
+
+if TYPE_CHECKING:
+    from blackbox.proxy.core import Proxy
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ class Services:
     http: httpx.AsyncClient
     tasks: set[asyncio.Task[Any]] = field(default_factory=set)
     health_hooks: list[Callable[[], Awaitable[dict[str, Any]]]] = field(default_factory=list)
+    proxy: Proxy | None = None
 
     @classmethod
     async def create(
