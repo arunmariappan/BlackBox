@@ -214,7 +214,7 @@ async def load_spans(store: Store, trace_id: str) -> list[SpanData]:
 async def load_exchanges(store: Store, trace_id: str) -> list[ExchangeData]:
     out = []
     for row in await store.reader.exchanges(trace_id):
-        sent = getattr(row, "sent_request_blob", None)
+        sent = row.sent_request_blob
         out.append(
             ExchangeData(
                 row,

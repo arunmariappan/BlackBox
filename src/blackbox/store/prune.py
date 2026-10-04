@@ -14,7 +14,7 @@ _BLOB_REFERENCES = """
     UNION SELECT output_blob FROM runs WHERE output_blob IS NOT NULL
     UNION SELECT request_blob FROM exchanges WHERE request_blob IS NOT NULL
     UNION SELECT response_blob FROM exchanges WHERE response_blob IS NOT NULL
-    {extra}
+    UNION SELECT sent_request_blob FROM exchanges WHERE sent_request_blob IS NOT NULL
     UNION SELECT prompt_blob FROM judge_calls WHERE prompt_blob IS NOT NULL
     UNION SELECT response_blob FROM judge_calls WHERE response_blob IS NOT NULL
     UNION SELECT report_blob FROM suite_runs WHERE report_blob IS NOT NULL
@@ -26,11 +26,6 @@ _BLOB_REFERENCES = """
 class PruneResult:
     runs: int
     blobs: int
-
-
-async def _has_column(session: AsyncSession, table: str, column: str) -> bool:
-    rows = (await session.execute(text(f"PRAGMA table_info({table})"))).all()
-    return any(row[1] == column for row in rows)
 
 
 async def prune(store: Store, *, cutoff_ms: int) -> PruneResult:
@@ -57,12 +52,7 @@ async def prune(store: Store, *, cutoff_ms: int) -> PruneResult:
             await session.execute(delete(RecordedValue).where(RecordedValue.trace_id.in_(traces)))
             await session.execute(delete(Session).where(Session.trace_id.in_(traces)))
             await session.execute(delete(Run).where(Run.id.in_(ids)))  # steps, scores, failures cascade
-        extra = ""
-        if await _has_column(session, "exchanges", "sent_request_blob"):
-            extra = "UNION SELECT sent_request_blob FROM exchanges WHERE sent_request_blob IS NOT NULL"
-        result = await session.execute(
-            text(f"DELETE FROM blobs WHERE sha256 NOT IN ({_BLOB_REFERENCES.format(extra=extra)})")
-        )
+        result = await session.execute(text(f"DELETE FROM blobs WHERE sha256 NOT IN ({_BLOB_REFERENCES})"))
         return PruneResult(runs=len(run_ids), blobs=int(getattr(result, "rowcount", 0) or 0))
 
     return await store.write(op)

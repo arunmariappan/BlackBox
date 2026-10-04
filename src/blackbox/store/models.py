@@ -107,6 +107,7 @@ class Exchange(Base):
     query: Mapped[str] = mapped_column(default="")
     request_headers: Mapped[dict[str, Any]] = mapped_column(default=dict)  # redacted
     request_blob: Mapped[str | None]
+    sent_request_blob: Mapped[str | None]  # what was actually sent, when an override or patch changed it
     request_key: Mapped[str]  # SHA-256 of the canonical request
     status: Mapped[int | None]
     response_headers: Mapped[dict[str, Any]] = mapped_column(default=dict)
