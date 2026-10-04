@@ -80,16 +80,30 @@ START_HOOKS: list[StartHook] = []
 
 
 async def start_worker(running: Running) -> None:
+    from blackbox.clusters import jobs as failure_jobs
     from blackbox.live.worker import Worker, profile_after_complete, run_completed
     from blackbox.metrics.hooks import metrics_after_complete
 
     services = running.services
     worker = Worker(services)
     worker.register("run_completed", run_completed)
-    services.completion_handlers[:0] = [profile_after_complete, metrics_after_complete]  # checker before metrics
+    worker.register("describe_failure", failure_jobs.describe_failure)
+    worker.register("recluster", failure_jobs.recluster)
+    # The checker, then metrics, then failure detection (which reads both).
+    services.completion_handlers[:0] = [
+        profile_after_complete,
+        metrics_after_complete,
+        failure_jobs.failures_after_complete,
+    ]
     services.worker = worker
     await worker.start()
     running.stoppers.append(worker.stop)
+    nightly = services.spawn(failure_jobs.nightly(services), name="blackbox-nightly-recluster")
+
+    async def stop_nightly() -> None:
+        nightly.cancel()
+
+    running.stoppers.append(stop_nightly)
 
 
 def _load_start_hooks() -> None:

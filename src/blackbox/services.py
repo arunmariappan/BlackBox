@@ -19,6 +19,7 @@ from blackbox.runs.assembler import RunAssembler
 from blackbox.store import Store
 
 if TYPE_CHECKING:
+    from blackbox.clusters.service import ClusterService
     from blackbox.live.worker import Worker
     from blackbox.proxy.core import Proxy
     from blackbox.store.models import Run
@@ -41,6 +42,7 @@ class Services:
     health_hooks: list[Callable[[], Awaitable[dict[str, Any]]]] = field(default_factory=list)
     proxy: Proxy | None = None
     worker: Worker | None = None
+    clusters: ClusterService | None = None
     # Run after every completed run, in order, by the worker's `run_completed` job (checker, metrics, ...).
     completion_handlers: list[Callable[[Services, Run], Awaitable[None]]] = field(default_factory=list)
     # Each returns extra fields for a replay's fidelity report (judges in phase 5, metrics in phase 7).
@@ -73,6 +75,9 @@ class Services:
 
         services.report_hooks.extend([judge_report, metric_changes])
         services.badge_hooks.append(metric_badges)
+        from blackbox.clusters.service import ClusterService
+
+        services.clusters = ClusterService(services)
         return services
 
     async def start(self) -> None:
