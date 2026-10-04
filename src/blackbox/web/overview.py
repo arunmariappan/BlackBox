@@ -2,6 +2,8 @@
 
 import statistics
 from collections import defaultdict
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 import plotly.graph_objects as go
@@ -10,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 
 from blackbox.services import Services
-from blackbox.store.models import Run, Score
+from blackbox.store.models import Marker, Run, Score
 from blackbox.util import now_ms, parse_duration_ms
 
 router = APIRouter()
@@ -27,6 +29,10 @@ RATES = [
 ]
 
 
+def _when(ms: int) -> datetime:
+    return datetime.fromtimestamp(ms / 1000, tz=UTC)
+
+
 def percentile(values: list[float], q: float) -> float | None:
     if not values:
         return None
@@ -35,8 +41,24 @@ def percentile(values: list[float], q: float) -> float | None:
     return ordered[index]
 
 
-def _figure(title: str, traces: list[Any], y_title: str, percent: bool = False) -> str:
+def _figure(
+    title: str,
+    traces: list[Any],
+    y_title: str,
+    percent: bool = False,
+    *,
+    markers: Sequence[Marker] = (),
+    periods: Sequence[tuple[int, int]] = (),
+) -> str:
+    """A chart; markers are dotted vertical lines and alert periods shaded bands."""
     fig = go.Figure(traces)
+    for start, end in periods:
+        fig.add_vrect(x0=_when(start), x1=_when(end), fillcolor="red", opacity=0.08, line_width=0)
+    for marker in markers:
+        fig.add_vline(x=_when(marker.created_ms).timestamp() * 1000, line_dash="dot", line_color="gray")
+        fig.add_annotation(
+            x=_when(marker.created_ms), y=1, yref="paper", text=marker.text[:40], showarrow=False, font={"size": 10}
+        )
     fig.update_layout(
         title={"text": title, "font": {"size": 14}},
         height=260,
@@ -120,8 +142,6 @@ def _hit(name: str, score: Score | None) -> float | None:
 
 @router.get("/overview", response_class=HTMLResponse, include_in_schema=False)
 async def overview_page(request: Request, profile: str | None = None, window: str = "7d") -> HTMLResponse:
-    from datetime import UTC, datetime
-
     services: Services = request.app.state.services
     profiles = services.profiles.names()
     profile = profile or (profiles[0] if profiles else "")
@@ -129,6 +149,16 @@ async def overview_page(request: Request, profile: str | None = None, window: st
     bucket_ms = 3_600_000 if window_ms <= 2 * 86_400_000 else 86_400_000
     data = await overview_data(services, profile, window_ms, bucket_ms)
     x = [datetime.fromtimestamp(k / 1000, tz=UTC) for k in data["keys"]]
+    async with services.store.read() as s:
+        markers = list(
+            (
+                await s.execute(
+                    select(Marker)
+                    .where(Marker.profile == profile, Marker.created_ms >= now_ms() - window_ms)
+                    .order_by(Marker.created_ms)
+                )
+            ).scalars()
+        )
     charts = []
     rate_traces = [
         go.Scatter(x=x, y=data["rates"][name], name=label, mode="lines+markers", connectgaps=True)
@@ -136,7 +166,7 @@ async def overview_page(request: Request, profile: str | None = None, window: st
         if any(v is not None for v in data["rates"][name])
     ]
     if rate_traces:
-        charts.append(_figure("Rates", rate_traces, "share of runs", percent=True))
+        charts.append(_figure("Rates", rate_traces, "share of runs", percent=True, markers=markers))
     for label, unit in (("steps", "steps"), ("tokens", "tokens"), ("latency_ms", "ms")):
         series = data["series"][label]
         charts.append(
@@ -147,6 +177,7 @@ async def overview_page(request: Request, profile: str | None = None, window: st
                     go.Scatter(x=x, y=series["p95"], name="p95", mode="lines+markers"),
                 ],
                 unit,
+                markers=markers,
             )
         )
     for hook in getattr(request.app.state, "overview_hooks", []):

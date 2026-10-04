@@ -44,7 +44,7 @@ def make_templates() -> Jinja2Templates:
 
 
 def create_app(services: Services) -> FastAPI:
-    from blackbox.web import api, clustering, judging, overview, pages, replay
+    from blackbox.web import api, clustering, judging, live, overview, pages, replay
 
     app = FastAPI(title="BlackBox", version=__version__, docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.state.services = services
@@ -54,12 +54,15 @@ def create_app(services: Services) -> FastAPI:
     app.state.overview_hooks = []
     app.state.nav = [
         ("/runs", "Runs"),
+        ("/live", "Live"),
+        ("/alerts", "Alerts"),
         ("/overview", "Overview"),
         ("/clusters", "Clusters"),
         ("/sessions", "Replays"),
         ("/judges", "Judges"),
         ("/label", "Label"),
         ("/unattributed", "Unattributed"),
+        ("/jobs", "Jobs"),
     ]
     app.include_router(otlp_router(services.assembler.ingest))
     app.include_router(api.router)
@@ -67,6 +70,7 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(judging.router)
     app.include_router(overview.router)
     app.include_router(clustering.router)
+    app.include_router(live.router)
     app.include_router(pages.router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 

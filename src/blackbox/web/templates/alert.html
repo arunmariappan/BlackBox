@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Alert{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>{{ summary }}</h1>
+  <span class="badge {% if alert.status == 'open' %}bad{% else %}ok{% endif %}">{{ alert.status }}</span>
+  {% if alert.status == "open" %}<form method="post" action="/alerts/{{ alert.id }}/resolve" class="right"><button type="submit">Resolve</button></form>{% endif %}
+</div>
+<dl class="kv">
+  <dt>Profile</dt><dd><a href="/live?profile={{ alert.profile }}">{{ alert.profile }}</a></dd>
+  <dt>Rule</dt><dd>{{ alert.rule }}</dd>
+  <dt>Opened</dt><dd>{{ alert.opened_ms | time }} UTC</dd>
+  {% if alert.closed_ms %}<dt>Resolved</dt><dd>{{ alert.closed_ms | time }} UTC ({{ d.resolved_by or "clear" }})</dd>{% endif %}
+  {% if d.shown %}
+  <dt>Baseline</dt><dd>{{ d.shown.baseline | num }}{% if d.shown.baseline_interval %} <span class="muted small">(90% {{ d.shown.baseline_interval[0] | num }}–{{ d.shown.baseline_interval[1] | num }})</span>{% endif %} over {{ d.baseline_n }} runs</dd>
+  <dt>Current</dt><dd>{{ d.shown.current | num }}{% if d.shown.current_interval %} <span class="muted small">(90% {{ d.shown.current_interval[0] | num }}–{{ d.shown.current_interval[1] | num }})</span>{% endif %} over {{ d.current_n }} runs</dd>
+  <dt>Evidence</dt><dd>{{ "%.2f" | format(d.statistic or 0) }} against a threshold of {{ d.threshold }}{% if d.p_worse is not none %} · P(more than {{ "%.0f" | format(delta * 100) }} points worse) = {{ "%.2f" | format(d.p_worse) }}{% endif %}</dd>
+  {% endif %}
+  {% if d.window %}<dt>Window</dt><dd>{{ d.window.runs }} runs, {{ d.window.start_ms | time }} – {{ d.window.end_ms | time }}{% if d.window.drop_started_run %} · the change began at run <a href="/runs/{{ d.window.drop_started_run }}">{{ d.window.drop_started_run[-8:] }}</a>{% endif %}</dd>{% endif %}
+  {% if d.latest %}<dt>Latest reading</dt><dd>{{ d.latest.state }} · evidence {{ "%.2f" | format(d.latest.statistic or 0) }} ({{ d.evaluated_ms | time }})</dd>{% endif %}
+</dl>
+{% if d.markers %}
+<h2>Markers</h2>
+<ul>{% for m in d.markers %}<li>{{ m.created_ms | time }} · {{ m.text }}{% if m.note %} <span class="muted">({{ m.note }})</span>{% endif %}</li>{% endfor %}</ul>
+{% endif %}
+{% if d.clusters %}
+<h2>Failure clusters in the window</h2>
+<table>
+  <thead><tr><th>Cluster</th><th class="num">Runs</th><th>Examples</th></tr></thead>
+  <tbody>
+  {% for c in d.clusters %}
+  <tr>
+    <td><a href="/clusters/{{ c.cluster_id }}">{{ c.title or "unnamed" }}</a>{% if c.new %} <span class="badge warn">new</span>{% endif %}</td>
+    <td class="num">{{ c.runs | length if c.runs else c.new_members }}</td>
+    <td class="small">{% for r in (c.runs or c.examples or [])[:5] %}<a href="/runs/{{ r }}">{{ r[-8:] }}</a> {% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

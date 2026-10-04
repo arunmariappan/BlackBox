@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<h1>Jobs</h1>
+<table>
+  <thead><tr><th>Lane</th>{% for s in ["queued", "running", "done", "failed"] %}<th class="num">{{ s }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for lane, row in counts | dictsort %}<tr><td>{{ lane }}</td>{% for s in ["queued", "running", "done", "failed"] %}<td class="num">{{ row.get(s, 0) }}</td>{% endfor %}</tr>{% else %}<tr><td colspan="5" class="empty">No jobs yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+<h2>Failed jobs</h2>
+<p class="small muted">A job is retried twice with backoff, then stays failed here with its last error.</p>
+<table>
+  <thead><tr><th>Job</th><th>Lane</th><th>Run</th><th class="num">Attempts</th><th>Failed (UTC)</th><th>Last error</th><th></th></tr></thead>
+  <tbody>
+  {% for j in failed %}
+  <tr>
+    <td>{{ j.kind }}</td>
+    <td>{{ j.lane }}</td>
+    <td class="small">{% if j.run_id %}<a href="/runs/{{ j.run_id }}">{{ j.run_id[-8:] }}</a>{% endif %}</td>
+    <td class="num">{{ j.attempts }}</td>
+    <td class="small">{{ j.updated_ms | time }}</td>
+    <td class="small"><details><summary>{{ (j.last_error or "").splitlines()[0][:120] }}</summary><pre>{{ j.last_error }}</pre></details></td>
+    <td><form method="post" action="/jobs/{{ j.id }}/retry"><button type="submit">retry</button></form></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="empty">No failed jobs.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>Alerts</h1>
+  <a class="badge {% if not status %}accent{% endif %}" href="/alerts">all</a>
+  <a class="badge {% if status == 'open' %}accent{% endif %}" href="/alerts?status=open">open</a>
+  <a class="badge {% if status == 'resolved' %}accent{% endif %}" href="/alerts?status=resolved">resolved</a>
+</div>
+<table>
+  <thead><tr><th>Status</th><th>Alert</th><th>Rule</th><th>Opened (UTC)</th><th>Closed</th><th>Telegram</th></tr></thead>
+  <tbody hx-get="/alerts{% if status %}?status={{ status }}{% endif %}" hx-select="tbody > tr" hx-swap="innerHTML" hx-trigger="sse:alert">
+  {% for a in alerts %}
+  <tr>
+    <td><span class="badge {% if a.status == 'open' %}bad{% else %}ok{% endif %}">{{ a.status }}</span></td>
+    <td><a href="/alerts/{{ a.id }}">{{ a.summary }}</a></td>
+    <td class="small muted">{{ a.rule }}</td>
+    <td class="small">{{ a.opened_ms | time }}</td>
+    <td class="small">{% if a.closed_ms %}{{ a.closed_ms | time }} ({{ (a.closed_ms - a.opened_ms) | duration }}){% endif %}</td>
+    <td class="small">{% if a.notified %}sent{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">No alerts. Detectors run after every scored live or traffic run.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

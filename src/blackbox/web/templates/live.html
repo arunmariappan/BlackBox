@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Live{% endblock %}
+{% block head %}<script src="/static-vendor/plotly.min.js"></script>{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>Live</h1>
+  {% for p in profiles %}<a class="badge {% if p == profile %}accent{% endif %}" href="/live?profile={{ p }}">{{ p }}</a>{% endfor %}
+  <a class="right" href="/live?profile={{ profile }}">refresh</a>
+</div>
+<div class="grid" hx-get="/live?profile={{ profile }}" hx-select=".grid" hx-swap="outerHTML" hx-trigger="sse:run throttle:5s, sse:alert, sse:patch">
+  <div class="card"><div class="label">Runs in the last hour</div><div class="value">{{ runs_last_hour }}</div><div class="small muted">{{ "%.1f" | format(runs_per_hour_day) }} per hour over 24 h</div></div>
+  <div class="card"><div class="label">Pass rate (last {{ main.n if main else 0 }} runs)</div>
+    {% if main %}<div class="value">{{ "%.0f" | format(main.rate * 100) }}%</div>
+    <div class="small muted">90% interval {{ "%.0f" | format(main.interval[0] * 100) }}–{{ "%.0f" | format(main.interval[1] * 100) }}%</div>
+    <span class="spark" title="rolling pass rate, last {{ main.spark | length }} runs">{% for v in main.spark %}<i style="height: {{ (v * 100) | round }}%"></i>{% endfor %}</span>
+    {% else %}<div class="value muted">-</div><div class="small muted">no checker and no trusted judge yet</div>{% endif %}
+  </div>
+  <div class="card"><div class="label">Model lane queue</div><div class="value">{{ queue_depth }}</div><div class="small muted">{% if queue_lag_ms %}oldest waiting {{ queue_lag_ms | duration }}{% else %}nothing waiting{% endif %}{% if failed_jobs %} · <a href="/jobs">{{ failed_jobs }} failed jobs</a>{% endif %}</div></div>
+  <div class="card"><div class="label">Open alerts</div><div class="value">{{ alerts | length }}</div>
+    {% for a in alerts %}<div class="small"><a href="/alerts/{{ a.row.id }}">{{ a.summary }}</a></div>{% endfor %}</div>
+  <div class="card"><div class="label">Live patches</div><div class="value">{{ patches | length }}</div>
+    {% for p in patches %}<form method="post" action="/live/patches/{{ p.id }}/remove" class="flex small"><span class="badge warn">{{ p.name }}</span> {{ p.hits }} requests, expires in {{ ((p.expires_ms - now) / 60000) | round | int }} min <button type="submit">remove</button></form>{% endfor %}</div>
+</div>
+
+<h2>Detectors</h2>
+<table>
+  <thead><tr><th>Signal</th><th>Rule</th><th class="num">Baseline</th><th class="num">Current</th><th class="num">Evidence / threshold</th><th>State</th></tr></thead>
+  <tbody>
+  {% for r in readings %}
+  {% set v = r.reading.shown %}
+  <tr>
+    <td>{{ r.reading.label }}</td>
+    <td class="small muted">{{ r.rule }}</td>
+    <td class="num">{% if r.reading.kind == "rate" %}{{ "%.0f" | format((v.baseline or 0) * 100) }}%{% else %}{{ v.baseline | num }}{% endif %} <span class="small muted">n={{ r.reading.baseline_n }}</span></td>
+    <td class="num">{% if r.reading.kind == "rate" %}{{ "%.0f" | format((v.current or 0) * 100) }}%{% else %}{{ v.current | num }}{% endif %} <span class="small muted">n={{ r.reading.current_n }}</span></td>
+    <td class="num">{{ "%.1f" | format(r.reading.statistic) }} / {{ r.reading.threshold }}</td>
+    <td><span class="badge {% if r.state == 'alarm' %}bad{% elif r.state == 'hold' %}warn{% else %}ok{% endif %}">{{ r.state }}</span></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">Not enough {{ profile }} runs yet: detectors need {{ 38 }} or more completed live or traffic runs.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if insufficient %}<p class="small muted">Waiting for history: {{ insufficient | join(", ") }}.</p>{% endif %}
+
+<h2>Markers</h2>
+<form method="post" action="/live/markers" class="flex">
+  <input type="hidden" name="profile" value="{{ profile }}">
+  <input name="text" placeholder="what changed, e.g. new guardrail prompt" size="50">
+  <button type="submit">Add marker</button>
+  <span class="small muted">or <code>blackbox mark {{ profile }} "…"</code></span>
+</form>
+<ul class="small">{% for m in markers | reverse %}<li>{{ m.created_ms | time }} · {{ m.text }}</li>{% endfor %}</ul>
+
+<h2>Signals</h2>
+{% for chart in charts %}<div class="card" style="margin-top:12px">{{ chart | safe }}</div>{% else %}<p class="empty">No {{ profile }} runs yet.</p>{% endfor %}
+{% endblock %}
