@@ -34,6 +34,8 @@ uv run pytest                             # unit + integration; never needs Olla
 uv run pytest tests/unit/test_matching.py::test_name   # a single test
 uv run blackbox serve                     # UI/API/OTLP on :8200, proxy listeners :8210-8213, worker
 uv run blackbox db upgrade                # Alembic migrations (serve also runs them)
+uv run blackbox db prune --older-than 30d # keeps baseline and labelled runs
+uv run blackbox runs export <run> --out <dir>   # run bundle; `runs import <dir>` is idempotent
 uv run blackbox run paperpilot "What are transformer architectures?"     # start a recorded run (phase 2)
 uv run blackbox replay <run> [--from-step N | --auto-fork] [--model M] [--patch FILE]   # phase 4
 uv run opsdesk env    # :8221      uv run opsdesk agent    # :8220        (phase 6)

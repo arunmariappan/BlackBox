@@ -64,30 +64,50 @@ manifest.
 ## Tasks
 
 ### 1.1 Models and migrations
-- [ ] SQLAlchemy 2 typed models (`Mapped[...]`) for every table above, in `blackbox/store/models.py`.
-- [ ] Alembic setup in `blackbox/store/migrations`, first migration creating everything, `blackbox db upgrade`.
+- [x] SQLAlchemy 2 typed models (`Mapped[...]`) for every table above, in `blackbox/store/models.py`.
+- [x] Alembic setup in `blackbox/store/migrations`, first migration creating everything, `blackbox db upgrade`.
 
 ### 1.2 Writer and readers
-- [ ] `StoreWriter`: queue, batching, one transaction per batch, errors returned to the caller that submitted the
+- [x] `StoreWriter`: queue, batching, one transaction per batch, errors returned to the caller that submitted the
       failing operation without affecting the others in the batch (retry the rest one by one).
-- [ ] `StoreReader`: async read sessions (aiosqlite), helper queries for runs, steps and exchanges.
-- [ ] Startup pragmas: WAL, `busy_timeout=5000`, `foreign_keys=ON`.
+- [x] `StoreReader`: async read sessions (aiosqlite), helper queries for runs, steps and exchanges.
+- [x] Startup pragmas: WAL, `busy_timeout=5000`, `foreign_keys=ON`.
 
 ### 1.3 Blobs
-- [ ] `BlobStore.put(bytes, content_type) -> sha256` (insert if missing) and `get(sha256) -> bytes`.
-- [ ] `blackbox db prune --older-than 30d`: deletes runs older than the cutoff (except those in a baseline or with
+- [x] `BlobStore.put(bytes, content_type) -> sha256` (insert if missing) and `get(sha256) -> bytes`.
+- [x] `blackbox db prune --older-than 30d`: deletes runs older than the cutoff (except those in a baseline or with
       labels) and then any blob nothing references.
 
 ### 1.4 Bundles
-- [ ] `export_run(run_id, dir)` and `import_bundle(dir)`, plus the CLI commands. JSON is written with sorted keys and
+- [x] `export_run(run_id, dir)` and `import_bundle(dir)`, plus the CLI commands. JSON is written with sorted keys and
       two-space indent, so committed bundles diff cleanly.
 
 ## Tests
-- [ ] 1,000 writes submitted at once from 20 concurrent tasks all land, with no "database is locked" error.
-- [ ] A failing operation in a batch fails only its own caller.
-- [ ] The same blob put twice is stored once; get returns identical bytes.
-- [ ] Export, then import into an empty database, gives identical rows (round-trip test).
-- [ ] `prune` keeps labelled and baseline runs and removes unreferenced blobs.
+- [x] 1,000 writes submitted at once from 20 concurrent tasks all land, with no "database is locked" error.
+- [x] A failing operation in a batch fails only its own caller.
+- [x] The same blob put twice is stored once; get returns identical bytes.
+- [x] Export, then import into an empty database, gives identical rows (round-trip test).
+- [x] `prune` keeps labelled and baseline runs and removes unreferenced blobs.
 
 ## Done when
-- [ ] `blackbox db upgrade` creates `data/blackbox.db`, and the tests above pass in CI.
+- [x] `blackbox db upgrade` creates `data/blackbox.db`, and the tests above pass in CI.
+
+## What was built (2026-10-04)
+
+- `blackbox/store/`: typed models for every table (`models.py`), the first migration `0001` (generated from the
+  models; a test checks that models and migrations never drift), `StoreWriter` (batches of up to 50 operations or
+  50 ms, one transaction per batch, each operation in its own SAVEPOINT so a failure reaches only its caller; a batch
+  whose commit fails is retried one operation at a time), `StoreReader` on a pool of `query_only` connections,
+  `BlobStore` with a small LRU cache, `prune.py` and `bundles.py`.
+- Differences from the table above: `runs` also has `updated_ms` (last activity, used by restart recovery),
+  `input_text`/`output_text` (short forms for lists), `remote_parent_span_id` (the span id in the `traceparent`
+  BlackBox sent, which identifies the root span) and denormalised `step_count`, token and duration columns for the
+  runs list. `spans` has `scope`, `flags` and `blob_refs` (the blobs its large attributes moved to, so prune can find
+  them). `judge_calls` has `judge_name`, `run_id`, `error` and `attempts`; `alerts` has `status` and `clear_count`;
+  `clusters` has `cause_status` and `named_members`; `jobs` has `lane`.
+- Transactions: SQLAlchemy emits `BEGIN IMMEDIATE` itself (the driver's own transaction handling is off), which makes
+  SAVEPOINTs work with aiosqlite.
+- A baseline run is one whose `tags.baseline` is set (bundles imported into a baseline get it) or that a suite case
+  names as its baseline run; prune keeps those and every labelled run.
+- Commands: `blackbox db upgrade`, `blackbox db prune --older-than 30d`, `blackbox runs export <run> --out <dir>`,
+  `blackbox runs import <dir>`.
