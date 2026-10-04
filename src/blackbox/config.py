@@ -7,7 +7,7 @@ bad values.
 import os
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import (
@@ -92,6 +92,7 @@ class Settings(BaseSettings):
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     runs: RunsConfig = Field(default_factory=RunsConfig)
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
+    profiles: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-profile options, e.g. base_url
     log_level: Literal["debug", "info", "warning", "error"] = "info"
 
     @classmethod

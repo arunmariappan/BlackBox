@@ -1,0 +1,115 @@
+"""PaperPilot's agentic RAG (`POST /api/v1/ask-agentic`), a .NET agent over arXiv papers."""
+
+from collections.abc import Sequence
+from typing import Any
+
+from blackbox.otlp.decode import SpanData
+from blackbox.profiles.base import Profile, StartRequest
+from blackbox.runs.context import RunContext
+
+ROOT_SPAN = "agentic_rag_request"
+NODES = frozenset(
+    {
+        "guardrail_validation",
+        "document_retrieval_initiation",
+        "document_grading",
+        "query_rewriting",
+        "answer_generation",
+    }
+)
+ENDING_MARKERS = (
+    ("Generated answer from context", "answered"),
+    ("Responded as out of scope", "out_of_scope"),
+    ("retrieval attempts", "max_attempts"),  # "Stopped after {n} retrieval attempts"
+    ("Search was unavailable", "search_unavailable"),
+)
+
+
+class PaperPilotProfile(Profile):
+    name = "paperpilot"
+    description = "PaperPilot /ask-agentic (agentic RAG over arXiv papers, .NET)"
+    node_spans = NODES
+    failure_endings = frozenset({"max_attempts", "search_unavailable", "error"})
+
+    @property
+    def base_url(self) -> str:
+        return str(self.options.get("base_url", "http://127.0.0.1:8100")).rstrip("/")
+
+    def matches(self, spans: Sequence[SpanData]) -> bool:
+        return any(span.name == ROOT_SPAN for span in spans)
+
+    def parse_input(self, text: str, **options: Any) -> dict[str, Any]:
+        run_input: dict[str, Any] = {
+            "query": text,
+            "top_k": int(options.get("top_k") or self.options.get("top_k", 3)),
+            "use_hybrid": bool(options.get("use_hybrid", self.options.get("use_hybrid", True))),
+            "model": str(options.get("model") or self.options.get("model", "qwen3.5:4b")),
+        }
+        categories = options.get("categories")
+        if categories:
+            run_input["categories"] = list(categories)
+        return run_input
+
+    def build_request(self, run_input: dict[str, Any]) -> StartRequest:
+        return StartRequest(
+            method="POST",
+            url=f"{self.base_url}/api/v1/ask-agentic",
+            body=run_input,
+            headers={"content-type": "application/json"},
+            timeout_seconds=float(self.options.get("timeout_seconds", 600)),
+        )
+
+    def _request_span(self, ctx: RunContext) -> SpanData | None:
+        spans = ctx.spans_named(ROOT_SPAN)
+        return spans[0] if spans else None
+
+    def input_text(self, ctx: RunContext) -> str | None:
+        body = ctx.entry_body
+        if isinstance(body, dict) and isinstance(body.get("query"), str):
+            return str(body["query"])
+        span = self._request_span(ctx)
+        if span is not None:
+            value = ctx.view(span).trace_input
+            if isinstance(value, dict):
+                value = value.get("query", value.get("question"))
+            if isinstance(value, str):
+                return value
+        return None
+
+    def read_output(self, ctx: RunContext) -> Any:
+        if ctx.output_body is not None:
+            return super().read_output(ctx)
+        span = self._request_span(ctx)
+        if span is not None:
+            return ctx.view(span).trace_output
+        return None
+
+    def output_text(self, output: Any) -> str | None:
+        if isinstance(output, dict) and isinstance(output.get("answer"), str):
+            return str(output["answer"])
+        return super().output_text(output)
+
+    def ending(self, ctx: RunContext, output: Any) -> str | None:
+        steps = output.get("reasoning_steps") if isinstance(output, dict) else None
+        if isinstance(steps, list) and steps:
+            last = str(steps[-1])
+            for marker, ending in ENDING_MARKERS:
+                if marker.lower() in last.lower():
+                    return ending
+        # No response to read: decide from which node spans ran.
+        names = {span.name for span in ctx.spans}
+        search_failed = any(
+            span.name == "document_retrieval_initiation" and span.status_code == "error" for span in ctx.spans
+        )
+        if "answer_generation" in names:
+            return "answered"
+        if search_failed:
+            return "search_unavailable"
+        if "document_retrieval_initiation" in names:
+            return "max_attempts"
+        if "guardrail_validation" in names:
+            return "out_of_scope"
+        request = self._request_span(ctx)
+        if request is not None and request.status_code == "error":
+            return "error"
+        return None

@@ -45,3 +45,9 @@ stateful = true
 
 [proxy]
 redact_headers = ["authorization", "x-api-key", "api-key", "cookie", "set-cookie", "proxy-authorization"]
+
+[profiles.paperpilot]
+base_url = "http://127.0.0.1:8100"
+top_k = 3
+use_hybrid = true
+model = "qwen3.5:4b"              # PaperPilot's own default stays qwen3.5:9b; runs BlackBox starts ask for 4b
