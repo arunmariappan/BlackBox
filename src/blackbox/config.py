@@ -47,6 +47,10 @@ class RunsConfig(BaseModel):
     tick_seconds: float = Field(default=1.0, gt=0)
 
 
+class JudgesConfig(BaseModel):
+    judge_replays: bool = True  # fidelity reports judge the replay too (exact replays hit the cache: no model call)
+
+
 class UpstreamConfig(BaseModel):
     name: str
     listen_port: int = Field(ge=0, le=65535)
@@ -92,6 +96,7 @@ class Settings(BaseSettings):
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     runs: RunsConfig = Field(default_factory=RunsConfig)
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
+    judges: JudgesConfig = Field(default_factory=JudgesConfig)
     profiles: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-profile options, e.g. base_url
     log_level: Literal["debug", "info", "warning", "error"] = "info"
 
