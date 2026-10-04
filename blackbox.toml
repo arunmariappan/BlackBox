@@ -56,3 +56,10 @@ model = "qwen3.5:4b"              # PaperPilot's own default stays qwen3.5:9b; r
 agent_url = "http://127.0.0.1:8220"
 env_url = "http://127.0.0.1:8221"   # admin calls (sandboxes, checker); the agent's tools go through the proxy (8213)
 model = "qwen3.5:4b"
+
+[clusters]
+embedder = "fastembed"            # BAAI/bge-small-en-v1.5 on the CPU, downloaded once into cache_dir
+cache_dir = "data/models"
+min_cluster_size = 3
+onehot_weight = 0.5
+recluster_after = 10              # unclustered failures that trigger a re-clustering

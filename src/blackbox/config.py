@@ -51,6 +51,16 @@ class JudgesConfig(BaseModel):
     judge_replays: bool = True  # fidelity reports judge the replay too (exact replays hit the cache: no model call)
 
 
+class ClustersConfig(BaseModel):
+    embedder: Literal["fastembed", "hashing"] = "fastembed"  # hashing: no model download (tests, offline machines)
+    model: str = "BAAI/bge-small-en-v1.5"
+    cache_dir: Path = Path("data/models")
+    min_cluster_size: int = Field(default=3, ge=2)
+    onehot_weight: float = Field(default=0.5, ge=0)  # weight of ending, category, flags and node next to the text
+    recluster_after: int = Field(default=10, ge=1)  # unclustered failures waiting before a re-clustering
+    rename_change: float = Field(default=0.3, ge=0, le=1)  # regenerate a name when members change by more
+
+
 class UpstreamConfig(BaseModel):
     name: str
     listen_port: int = Field(ge=0, le=65535)
@@ -97,6 +107,7 @@ class Settings(BaseSettings):
     runs: RunsConfig = Field(default_factory=RunsConfig)
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
     judges: JudgesConfig = Field(default_factory=JudgesConfig)
+    clusters: ClustersConfig = Field(default_factory=ClustersConfig)
     profiles: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-profile options, e.g. base_url
     log_level: Literal["debug", "info", "warning", "error"] = "info"
 
