@@ -78,6 +78,11 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
 - Integration tests start a whole BlackBox in-process (`tests/harness.py`: real sockets on free ports, a copy of a
   database migrated once per session). The SDK's exporter posts from a background thread, so tests call
   `await asyncio.to_thread(sdk.flush)`, never `sdk.flush()` on the event loop (it would deadlock the in-process server).
+- Listening sockets set `TCP_NODELAY` (`server.bind`); without it every proxied call on a kept-alive connection
+  waits ~40 ms for a delayed ACK. Keep database writes off the proxy's request path (see `RunAssembler.open_call`).
+- BlackBox's own outgoing HTTP calls use `net.make_client` (an untraced transport): in a process where the SDK
+  instrumented httpx, instrumentation would otherwise overwrite the `traceparent` the proxy forwards or the runner
+  sends on purpose.
 - `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
   aligned comments stay as written.
 - The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one

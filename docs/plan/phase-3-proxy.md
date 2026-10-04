@@ -67,35 +67,35 @@ In the PaperPilot repo, extending phase 2's `BlackBox:Enabled`:
 ## Tasks
 
 ### 3.1 Proxy core
-- [ ] `blackbox/proxy/listener.py`: app factory per upstream, forwarding, header handling, streaming, error mapping.
-- [ ] `blackbox/proxy/recorder.py`: buffering with chunk times, redaction, `request_key`, exchange write, in-flight
+- [x] `blackbox/proxy/listener.py`: app factory per upstream, forwarding, header handling, streaming, error mapping.
+- [x] `blackbox/proxy/recorder.py`: buffering with chunk times, redaction, `request_key`, exchange write, in-flight
       notifications.
-- [ ] `blackbox serve` starts every configured listener; `/health` reports each listener and its upstream's
+- [x] `blackbox serve` starts every configured listener; `/health` reports each listener and its upstream's
       reachability.
 
 ### 3.2 Views
-- [ ] `blackbox/proxy/views/`: parsers for Ollama chat and generate (streamed and not), OpenAI chat, Ollama and Jina
+- [x] `blackbox/proxy/views/`: parsers for Ollama chat and generate (streamed and not), OpenAI chat, Ollama and Jina
       embeddings, OpenSearch search. Each tested on a recorded body.
 
 ### 3.3 Steps and UI
-- [ ] Step builder from exchanges with node lookup through the span chain.
-- [ ] Run page: each step shows the exact request and response (pretty-printed JSON, a raw tab, streamed chunks with
+- [x] Step builder from exchanges with node lookup through the span chain.
+- [x] Run page: each step shows the exact request and response (pretty-printed JSON, a raw tab, streamed chunks with
       their times), the "recorded" badge, and the span timing next to it.
-- [ ] Unattributed calls page.
+- [x] Unattributed calls page.
 
 ### 3.4 PaperPilot routing
 - [ ] The PaperPilot changes above, committed in the PaperPilot repo.
 
 ## Tests
-- [ ] Against a fake upstream: a JSON call, an NDJSON stream of 50 chunks and an SSE stream all arrive at the client
+- [x] Against a fake upstream: a JSON call, an NDJSON stream of 50 chunks and an SSE stream all arrive at the client
       byte-identical and the stored response equals what was sent; the first streamed chunk reaches the client before
       the upstream finishes.
-- [ ] `authorization` and `x-api-key` are forwarded but not stored.
-- [ ] Upstream refused → 502 with the upstream's name; client abort → stored with `client_aborted`.
-- [ ] Unrecorded paths pass through without a row.
-- [ ] A run isn't completed while a call is in flight, even after the root span ended.
-- [ ] Step builder on a fixture (exchanges + spans of one PaperPilot run): kinds, order and nodes as expected.
-- [ ] Added latency per call under 5 ms at the median on a local fake upstream (measured, printed by the test).
+- [x] `authorization` and `x-api-key` are forwarded but not stored.
+- [x] Upstream refused → 502 with the upstream's name; client abort → stored with `client_aborted`.
+- [x] Unrecorded paths pass through without a row.
+- [x] A run isn't completed while a call is in flight, even after the root span ended.
+- [x] Step builder on a fixture (exchanges + spans of one PaperPilot run): kinds, order and nodes as expected.
+- [x] Added latency per call under 5 ms at the median on a local fake upstream (measured, printed by the test).
 
 ## Done when
 - [ ] `blackbox run paperpilot "What are transformer architectures?"` produces a run whose steps are, in order:
@@ -105,3 +105,26 @@ In the PaperPilot repo, extending phase 2's `BlackBox:Enabled`:
       `data/blackbox.db`.
 - [ ] PaperPilot's classic `/stream` still streams token by token through the proxy.
 - [ ] One real run's bundle is exported to `tests/fixtures/bundles/paperpilot-answered/` for phase 4's tests.
+
+## What was built (2026-10-04)
+
+- `proxy/listener.py` is a raw ASGI app per upstream (not Starlette responses), so it can watch for the client
+  hanging up while it waits for the next upstream chunk; `proxy/core.py` holds forwarding, recording and attribution;
+  `proxy/views.py` the parsers; `proxy/manager.py` starts the listeners from `blackbox serve` and adds each
+  upstream's reachability to `/health`. The recorder lives in `proxy/core.py` (`Recording`, `write_exchange`).
+- **Latency:** a call never waits for the database. The run row for a trace first seen at the proxy is written in
+  the background (`RunAssembler.open_call`), `seq` comes from an in-memory counter (open runs are preloaded after a
+  restart), and the exchange is written by its own task after the response has gone back, so a kept-alive connection
+  takes the agent's next call at once. The test measures about 3 ms median added per call on a local fake upstream,
+  each call being a new trace (the slowest case).
+- **Found on the way:** listening sockets need `TCP_NODELAY`. Without it every response on a kept-alive connection
+  waited ~40 ms for the client's delayed ACK (Nagle), on every proxied call.
+- Redaction drops the configured headers and any header whose name looks like a key, token, secret or password, in
+  both directions (`set-cookie` too). Compressed responses are stored raw and decoded only for views.
+- Errors: refused or timed-out upstream → 502 `{"error": "blackbox_upstream_error", "upstream": ...}`, stored with
+  `error = "upstream_error: ..."`; client hang-up → `client_aborted` with the partial body; an upstream that breaks
+  mid-stream → `upstream_aborted: ...`.
+- Risk R1's fallback is in place: without `traceparent`, a 32-hex `X-BlackBox-Trace-Id` header attributes the call.
+- **Not done here (needs PaperPilot and its stack):** 3.4 PaperPilot routing, and the four "Done when" items.
+  `tests/fixtures/paperpilot.py` builds a synthetic run with exchanges (`insert_run`) in place of the real bundle
+  `tests/fixtures/bundles/paperpilot-answered/`; export a real one with `blackbox runs export` once a run is recorded.
