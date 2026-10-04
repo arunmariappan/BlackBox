@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+BlackBox is a flight recorder for AI agents, written in Python: it records agent runs (spans plus the exact bytes of
+every model and tool response), replays or forks them, scores them with metrics and LLM judges, clusters failures,
+alerts on quality drops, and runs regression suites. **The repo holds only the plan so far.** Read
+[docs/plan/README.md](docs/plan/README.md) and the current phase file before working; each phase file has tasks,
+tests and "done when" items to tick, and ends up recording what was actually built.
+
+## Working rules
+
+- Commit on `main`, one small conventional commit per task (`feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`),
+  pushed (plan D2). No attribution trailer in commit messages. The repo-local identity is
+  `Arun Mariappan Karunanithi <2525449+arunmariappan@users.noreply.github.com>`.
+- Python only (3.14, uv); the UI is Jinja2 templates plus HTMX, with no hand-written JavaScript.
+- Every model call (agents under test, judges, descriptions) uses `qwen3.5:4b` in the host Ollama with `think` off.
+  BlackBox's own calls use a JSON schema in Ollama's `format`, Pydantic validation, one retry, then an explicit
+  `invalid` result.
+- Ask the user before any GPU run longer than a few minutes (baselines, traffic, live suites, labelling runs): this PC
+  has shut down during long GPU runs. Develop and test on replay.
+- Changes to PaperPilot (the `BlackBox:Enabled` switch, phases 2–3) are committed in `D:\ai_workspace\PaperPilot`,
+  following that repo's own CLAUDE.md.
+- When a decision changes, update the plan (decisions D1–D17, risks R1–R11 in docs/plan/README.md) in the same
+  commit.
+
+## Commands (planned; they exist once phase 0 lands)
+
+```bash
+uv sync                                   # install (Python 3.14, uv.lock)
+uv run ruff format --check && uv run ruff check
+uv run mypy                               # strict on src/
+uv run pytest                             # unit + integration; never needs Ollama or a GPU
+uv run pytest tests/unit/test_matching.py::test_name   # a single test
+uv run blackbox serve                     # UI/API/OTLP on :8200, proxy listeners :8210-8213, worker
+uv run blackbox db upgrade                # Alembic migrations (serve also runs them)
+uv run blackbox run paperpilot "What are transformer architectures?"     # start a recorded run (phase 2)
+uv run blackbox replay <run> [--from-step N | --auto-fork] [--model M] [--patch FILE]   # phase 4
+uv run opsdesk env    # :8221      uv run opsdesk agent    # :8220        (phase 6)
+uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (phase 10)
+```
+
+## Architecture
+
+- **One process** (`blackbox serve`) runs on one asyncio loop: the FastAPI app (UI, REST API, OTLP/HTTP receiver at
+  `/v1/traces` on 8200), one uvicorn listener per proxy upstream (8210 Ollama, 8211 PaperPilot OpenSearch, 8212 Jina,
+  8213 OpsDesk env), and the background worker. Everything binds to `127.0.0.1`; upstream URLs use `127.0.0.1`, never
+  `localhost` (Windows tries `::1` first and a refused IPv6 connection costs ~2 s).
+- **Two capture channels joined by trace id.** The proxy stores each exchange with the `traceparent` it carried; the
+  OTLP receiver stores spans. An exchange's parent span id is the agent's HTTP client span, whose ancestors give the
+  agent node (e.g. PaperPilot's `guardrail_validation`). A run completes when its root span has ended, nothing has
+  arrived for `quiet_seconds`, and no proxy call is in flight; then steps (one per exchange) are built and jobs queued.
+- **Runs BlackBox starts carry a `traceparent` it chose**, so it knows the trace id up front. Replay relies on this:
+  a session is keyed by its new trace id, and the proxy answers that trace's calls from the source run's tape.
+- **Replay modes:** `exact` (409 on divergence), `fork` (tape before step N, live after), `auto_fork` (tape until the
+  first request that differs, live after). Matching uses a hash of the canonical request after the profile's
+  normalisers; normalisers affect matching only, never what is sent or served. Patches edit requests before matching.
+  Stateful upstreams (OpsDesk env) add sync-forwarding and identifier aliasing; Python agents also get SDK shims for
+  the clock and randomness.
+- **Profiles** (`src/blackbox/profiles/`, one Python module per agent) hold everything agent-specific: how to start a
+  run, which spans are nodes, how to read output and ending, normalisers, metrics, judges. A new agent needs only a
+  profile.
+- **Storage:** one SQLite file (`data/blackbox.db`, WAL, gitignored). All writes go through the single `StoreWriter`
+  task; never open a second write connection. Bodies are zstd blobs keyed by SHA-256. Run bundles (`run.json` +
+  `blobs/`) are the export format for `baselines/` and test fixtures.
+- **OpsDesk** (`src/opsdesk/`) is a test agent that must look like an outside agent: it may import only
+  `blackbox.sdk` from BlackBox (a test enforces this) and talks to BlackBox only through the proxy and OTLP.
+- **Trust:** only judges that passed the agreement gate (κ ≥ 0.6 on ≥ 20 held-out labels) may decide failures, alerts
+  or regression verdicts.
+- **Secrets:** the proxy strips `authorization`, API-key headers and cookies before storing; a test scans committed
+  bundles for anything key-like.
+
+## Gotchas
+
+- Git here has `core.autocrlf=true`; keep files LF (`.gitattributes` arrives in phase 0).
+- Spike findings from phase 0 (PaperPilot's trace propagation, its GenAI span attributes, Ollama structured output from
+  Python, 3.14 wheels) are recorded here once known.
