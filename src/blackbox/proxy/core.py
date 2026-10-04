@@ -257,13 +257,14 @@ class Proxy:
         )
 
     async def record_live(
-        self, req: IncomingRequest, attribution: Attribution, rec: Recording | None = None
+        self, req: IncomingRequest, attribution: Attribution, rec: Recording | None = None, *, hooks: bool = True
     ) -> Outcome:
         if rec is None:
             rec = await self.begin(req, attribution)
         body = req.body
-        for hook in self.request_hooks:
-            await hook(req, rec)
+        if hooks:
+            for hook in self.request_hooks:
+                await hook(req, rec)
         if rec.sent_request_body is not None:
             body = rec.sent_request_body
         try:
@@ -394,7 +395,7 @@ async def write_exchange(store: Store, rec: Recording) -> None:
             values["request_blob"] = await insert_blob(session, request_blob)
         if response_blob is not None:
             values["response_blob"] = await insert_blob(session, response_blob)
-        if sent_blob is not None and hasattr(Exchange, "sent_request_blob"):
+        if sent_blob is not None:
             values["sent_request_blob"] = await insert_blob(session, sent_blob)
         session.add(Exchange(**values))
 
