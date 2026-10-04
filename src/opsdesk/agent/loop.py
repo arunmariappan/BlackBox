@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from blackbox import sdk
 from opsdesk.agent.tools import TOOLS, definitions
@@ -51,17 +51,16 @@ class RunResult:
 
 
 def call_tool(env: httpx.Client, sandbox: str, name: str, arguments: dict[str, Any]) -> Any:
+    """Send a tool call to the environment as the model gave it; the environment validates the arguments (422)."""
     tool = TOOLS.get(name)
     if tool is None:
         return {"error": f"unknown tool {name!r}", "status": 400}
-    try:
-        args = tool.args.model_validate(arguments or {}).model_dump()
-    except ValidationError as exc:
-        return {"error": f"invalid arguments for {name}: {exc.errors()[0]['msg']}", "status": 422}
-    path = tool.path.format(**{k: v for k, v in args.items() if v is not None})
+    args = dict(arguments or {})
+    path_args = {key: str(args.get(key) or "_") for key in tool.args.model_fields if "{" + key + "}" in tool.path}
+    path = tool.path.format(**path_args)
     query = {k: args[k] for k in tool.query if args.get(k) is not None}
     if name == "search_runbooks":
-        query = {"q": args["query"]}
+        query = {"q": args.get("query", "")}
     body = {k: args[k] for k in tool.body if k in args}
     response = env.request(
         tool.method,
@@ -75,10 +74,8 @@ def call_tool(env: httpx.Client, sandbox: str, name: str, arguments: dict[str, A
     except ValueError:
         payload = {"text": response.text}
     if response.status_code >= 400:
-        return {
-            "error": payload.get("error", payload) if isinstance(payload, dict) else payload,
-            "status": response.status_code,
-        }
+        error = payload.get("error", payload.get("detail", payload)) if isinstance(payload, dict) else payload
+        return {"error": error, "status": response.status_code}
     return payload
 
 
