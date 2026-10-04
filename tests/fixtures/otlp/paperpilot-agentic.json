@@ -1,0 +1,1010 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "api"
+            }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": {
+              "stringValue": "dotnet"
+            }
+          },
+          {
+            "key": "telemetry.sdk.name",
+            "value": {
+              "stringValue": "opentelemetry"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "Microsoft.AspNetCore"
+          },
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a001",
+              "parentSpanId": "00f067aa0ba902b7",
+              "name": "POST /api/v1/ask-agentic",
+              "kind": 2,
+              "startTimeUnixNano": "1790000000000000000",
+              "endTimeUnixNano": "1790000009000000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.path",
+                  "value": {
+                    "stringValue": "/api/v1/ask-agentic"
+                  }
+                },
+                {
+                  "key": "http.route",
+                  "value": {
+                    "stringValue": "/api/v1/ask-agentic"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            }
+          ]
+        },
+        {
+          "scope": {
+            "name": "PaperPilot.Agentic"
+          },
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a002",
+              "parentSpanId": "000000000000a001",
+              "name": "agentic_rag_request",
+              "kind": 1,
+              "startTimeUnixNano": "1790000000005000000",
+              "endTimeUnixNano": "1790000008990000000",
+              "attributes": [
+                {
+                  "key": "langfuse.trace.input",
+                  "value": {
+                    "stringValue": "What are transformer architectures?"
+                  }
+                },
+                {
+                  "key": "langfuse.trace.output",
+                  "value": {
+                    "stringValue": "{\"answer\": \"Transformer architectures replace recurrence with self-attention, so every token attends to every other token [arXiv:1706.03762]. Encoder-only variants such as BERT are pre-trained bidirectionally [arXiv:1810.04805].\", \"sources\": [{\"paper_id\": \"1706.03762\", \"title\": \"Attention Is All You Need\"}, {\"paper_id\": \"1810.04805\", \"title\": \"BERT: Pre-training of Deep Bidirectional Transformers\"}], \"reasoning_steps\": [\"Validated question relevance (score 92)\", \"Retrieved 1 chunks (attempt 1)\", \"Graded documents: not relevant\", \"Rewrote query: transformer neural network architecture self-attention\", \"Retrieved 2 chunks (attempt 2)\", \"Graded documents: relevant\", \"Generated answer from context\"], \"retrieval_attempts\": 2, \"chunks_used\": 2, \"search_mode\": \"hybrid\", \"trace_id\": \"4bf92f3577b34da6a3ce929d0e0e4736\"}"
+                  }
+                },
+                {
+                  "key": "langfuse.trace.metadata.top_k",
+                  "value": {
+                    "intValue": "3"
+                  }
+                },
+                {
+                  "key": "langfuse.trace.metadata.use_hybrid",
+                  "value": {
+                    "boolValue": true
+                  }
+                },
+                {
+                  "key": "langfuse.trace.metadata.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a003",
+              "parentSpanId": "000000000000a002",
+              "name": "guardrail_validation",
+              "kind": 1,
+              "startTimeUnixNano": "1790000000010000000",
+              "endTimeUnixNano": "1790000000900000000",
+              "attributes": [
+                {
+                  "key": "langfuse.observation.input",
+                  "value": {
+                    "stringValue": "What are transformer architectures?"
+                  }
+                },
+                {
+                  "key": "langfuse.observation.output",
+                  "value": {
+                    "stringValue": "{\"score\": 92, \"reason\": \"about neural network architectures\"}"
+                  }
+                },
+                {
+                  "key": "langfuse.observation.level",
+                  "value": {
+                    "stringValue": "DEFAULT"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a006",
+              "parentSpanId": "000000000000a002",
+              "name": "document_retrieval_initiation",
+              "kind": 1,
+              "startTimeUnixNano": "1790000000910000000",
+              "endTimeUnixNano": "1790000001100000000",
+              "attributes": [
+                {
+                  "key": "langfuse.observation.input",
+                  "value": {
+                    "stringValue": "What are transformer architectures?"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a009",
+              "parentSpanId": "000000000000a002",
+              "name": "document_grading",
+              "kind": 1,
+              "startTimeUnixNano": "1790000001110000000",
+              "endTimeUnixNano": "1790000001900000000",
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a00c",
+              "parentSpanId": "000000000000a002",
+              "name": "query_rewriting",
+              "kind": 1,
+              "startTimeUnixNano": "1790000001910000000",
+              "endTimeUnixNano": "1790000002700000000",
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a00f",
+              "parentSpanId": "000000000000a002",
+              "name": "document_retrieval_initiation",
+              "kind": 1,
+              "startTimeUnixNano": "1790000002710000000",
+              "endTimeUnixNano": "1790000002900000000",
+              "attributes": [
+                {
+                  "key": "langfuse.observation.input",
+                  "value": {
+                    "stringValue": "transformer neural network architecture self-attention"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a012",
+              "parentSpanId": "000000000000a002",
+              "name": "document_grading",
+              "kind": 1,
+              "startTimeUnixNano": "1790000002910000000",
+              "endTimeUnixNano": "1790000003800000000",
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a015",
+              "parentSpanId": "000000000000a002",
+              "name": "answer_generation",
+              "kind": 1,
+              "startTimeUnixNano": "1790000003810000000",
+              "endTimeUnixNano": "1790000008980000000",
+              "status": {}
+            }
+          ]
+        },
+        {
+          "scope": {
+            "name": "Experimental.Microsoft.Extensions.AI"
+          },
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a004",
+              "parentSpanId": "000000000000a003",
+              "name": "chat qwen3.5:4b",
+              "kind": 3,
+              "startTimeUnixNano": "1790000000020000000",
+              "endTimeUnixNano": "1790000000880000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": {
+                    "stringValue": "chat"
+                  }
+                },
+                {
+                  "key": "gen_ai.system",
+                  "value": {
+                    "stringValue": "ollama"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.temperature",
+                  "value": {
+                    "doubleValue": 0.0
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.input_tokens",
+                  "value": {
+                    "intValue": "210"
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.output_tokens",
+                  "value": {
+                    "intValue": "18"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.finish_reasons",
+                  "value": {
+                    "arrayValue": {
+                      "values": [
+                        {
+                          "stringValue": "stop"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "key": "gen_ai.input.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"system\", \"parts\": [{\"type\": \"text\", \"content\": \"You decide whether a question is about AI research. Score from 0 to 100 how relevant the question is to AI research papers. Reply with JSON: {\\\"score\\\": <int>, \\\"reason\\\": <string>}.\"}]}, {\"role\": \"user\", \"parts\": [{\"type\": \"text\", \"content\": \"What are transformer architectures?\"}]}]"
+                  }
+                },
+                {
+                  "key": "gen_ai.output.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"assistant\", \"parts\": [{\"type\": \"text\", \"content\": \"{\\\"score\\\": 92, \\\"reason\\\": \\\"about neural network architectures\\\"}\"}], \"finish_reason\": \"stop\"}]"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a00a",
+              "parentSpanId": "000000000000a009",
+              "name": "chat qwen3.5:4b",
+              "kind": 3,
+              "startTimeUnixNano": "1790000001120000000",
+              "endTimeUnixNano": "1790000001880000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": {
+                    "stringValue": "chat"
+                  }
+                },
+                {
+                  "key": "gen_ai.system",
+                  "value": {
+                    "stringValue": "ollama"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.temperature",
+                  "value": {
+                    "doubleValue": 0.0
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.input_tokens",
+                  "value": {
+                    "intValue": "150"
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.output_tokens",
+                  "value": {
+                    "intValue": "6"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.finish_reasons",
+                  "value": {
+                    "arrayValue": {
+                      "values": [
+                        {
+                          "stringValue": "stop"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "key": "gen_ai.input.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"system\", \"parts\": [{\"type\": \"text\", \"content\": \"You grade whether excerpts answer a question. Reply with JSON: {\\\"relevant\\\": \\\"yes\\\" | \\\"no\\\"}.\"}]}, {\"role\": \"user\", \"parts\": [{\"type\": \"text\", \"content\": \"Question: What are transformer architectures?\\nExcerpts:\\n[1] CNNs for sequences.\"}]}]"
+                  }
+                },
+                {
+                  "key": "gen_ai.output.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"assistant\", \"parts\": [{\"type\": \"text\", \"content\": \"{\\\"relevant\\\": \\\"no\\\"}\"}], \"finish_reason\": \"stop\"}]"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a00d",
+              "parentSpanId": "000000000000a00c",
+              "name": "chat qwen3.5:4b",
+              "kind": 3,
+              "startTimeUnixNano": "1790000001920000000",
+              "endTimeUnixNano": "1790000002680000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": {
+                    "stringValue": "chat"
+                  }
+                },
+                {
+                  "key": "gen_ai.system",
+                  "value": {
+                    "stringValue": "ollama"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.temperature",
+                  "value": {
+                    "doubleValue": 0.0
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.input_tokens",
+                  "value": {
+                    "intValue": "90"
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.output_tokens",
+                  "value": {
+                    "intValue": "9"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.finish_reasons",
+                  "value": {
+                    "arrayValue": {
+                      "values": [
+                        {
+                          "stringValue": "stop"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "key": "gen_ai.input.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"system\", \"parts\": [{\"type\": \"text\", \"content\": \"Rewrite the question so a search engine finds better papers. Reply with the new query only.\"}]}, {\"role\": \"user\", \"parts\": [{\"type\": \"text\", \"content\": \"What are transformer architectures?\"}]}]"
+                  }
+                },
+                {
+                  "key": "gen_ai.output.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"assistant\", \"parts\": [{\"type\": \"text\", \"content\": \"transformer neural network architecture self-attention\"}], \"finish_reason\": \"stop\"}]"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a013",
+              "parentSpanId": "000000000000a012",
+              "name": "chat qwen3.5:4b",
+              "kind": 3,
+              "startTimeUnixNano": "1790000002920000000",
+              "endTimeUnixNano": "1790000003780000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": {
+                    "stringValue": "chat"
+                  }
+                },
+                {
+                  "key": "gen_ai.system",
+                  "value": {
+                    "stringValue": "ollama"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.temperature",
+                  "value": {
+                    "doubleValue": 0.0
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.input_tokens",
+                  "value": {
+                    "intValue": "260"
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.output_tokens",
+                  "value": {
+                    "intValue": "6"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.finish_reasons",
+                  "value": {
+                    "arrayValue": {
+                      "values": [
+                        {
+                          "stringValue": "stop"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "key": "gen_ai.input.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"system\", \"parts\": [{\"type\": \"text\", \"content\": \"You grade whether excerpts answer a question. Reply with JSON: {\\\"relevant\\\": \\\"yes\\\" | \\\"no\\\"}.\"}]}, {\"role\": \"user\", \"parts\": [{\"type\": \"text\", \"content\": \"Question: What are transformer architectures?\\nExcerpts:\\n[1] The Transformer is based solely on attention mechanisms, dispensing with recurrence entirely.\\n[2] BERT uses a bidirectional Transformer encoder pre-trained with masked language modelling.\"}]}]"
+                  }
+                },
+                {
+                  "key": "gen_ai.output.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"assistant\", \"parts\": [{\"type\": \"text\", \"content\": \"{\\\"relevant\\\": \\\"yes\\\"}\"}], \"finish_reason\": \"stop\"}]"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a016",
+              "parentSpanId": "000000000000a015",
+              "name": "chat qwen3.5:4b",
+              "kind": 3,
+              "startTimeUnixNano": "1790000003820000000",
+              "endTimeUnixNano": "1790000008960000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": {
+                    "stringValue": "chat"
+                  }
+                },
+                {
+                  "key": "gen_ai.system",
+                  "value": {
+                    "stringValue": "ollama"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": {
+                    "stringValue": "qwen3.5:4b"
+                  }
+                },
+                {
+                  "key": "gen_ai.request.temperature",
+                  "value": {
+                    "doubleValue": 0.0
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.input_tokens",
+                  "value": {
+                    "intValue": "420"
+                  }
+                },
+                {
+                  "key": "gen_ai.usage.output_tokens",
+                  "value": {
+                    "intValue": "96"
+                  }
+                },
+                {
+                  "key": "gen_ai.response.finish_reasons",
+                  "value": {
+                    "arrayValue": {
+                      "values": [
+                        {
+                          "stringValue": "stop"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "key": "gen_ai.input.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"system\", \"parts\": [{\"type\": \"text\", \"content\": \"Answer the question using only the excerpts. Cite papers as [arXiv:<id>]. If the excerpts don't answer it, say so.\"}]}, {\"role\": \"user\", \"parts\": [{\"type\": \"text\", \"content\": \"Question: What are transformer architectures?\\nExcerpts:\\n[1] The Transformer is based solely on attention mechanisms, dispensing with recurrence entirely.\\n[2] BERT uses a bidirectional Transformer encoder pre-trained with masked language modelling.\"}]}]"
+                  }
+                },
+                {
+                  "key": "gen_ai.output.messages",
+                  "value": {
+                    "stringValue": "[{\"role\": \"assistant\", \"parts\": [{\"type\": \"text\", \"content\": \"Transformer architectures replace recurrence with self-attention, so every token attends to every other token [arXiv:1706.03762]. Encoder-only variants such as BERT are pre-trained bidirectionally [arXiv:1810.04805].\"}], \"finish_reason\": \"stop\"}]"
+                  }
+                }
+              ],
+              "status": {}
+            }
+          ]
+        },
+        {
+          "scope": {
+            "name": "System.Net.Http"
+          },
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a005",
+              "parentSpanId": "000000000000a004",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000000021000000",
+              "endTimeUnixNano": "1790000000879000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8210/api/chat"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8210"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a007",
+              "parentSpanId": "000000000000a006",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000000915000000",
+              "endTimeUnixNano": "1790000001035000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8212/v1/embeddings"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8212"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a008",
+              "parentSpanId": "000000000000a006",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000001045000000",
+              "endTimeUnixNano": "1790000001095000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8211/arxiv-papers-chunks/_search"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8211"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a00b",
+              "parentSpanId": "000000000000a00a",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000001121000000",
+              "endTimeUnixNano": "1790000001879000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8210/api/chat"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8210"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a00e",
+              "parentSpanId": "000000000000a00d",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000001921000000",
+              "endTimeUnixNano": "1790000002679000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8210/api/chat"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8210"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a010",
+              "parentSpanId": "000000000000a00f",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000002715000000",
+              "endTimeUnixNano": "1790000002835000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8212/v1/embeddings"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8212"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a011",
+              "parentSpanId": "000000000000a00f",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000002845000000",
+              "endTimeUnixNano": "1790000002895000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8211/arxiv-papers-chunks/_search"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8211"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a014",
+              "parentSpanId": "000000000000a013",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000002921000000",
+              "endTimeUnixNano": "1790000003779000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8210/api/chat"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8210"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "000000000000a017",
+              "parentSpanId": "000000000000a016",
+              "name": "POST",
+              "kind": 3,
+              "startTimeUnixNano": "1790000003821000000",
+              "endTimeUnixNano": "1790000008959000000",
+              "attributes": [
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "POST"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "http://127.0.0.1:8210/api/chat"
+                  }
+                },
+                {
+                  "key": "server.address",
+                  "value": {
+                    "stringValue": "127.0.0.1"
+                  }
+                },
+                {
+                  "key": "server.port",
+                  "value": {
+                    "intValue": "8210"
+                  }
+                },
+                {
+                  "key": "http.response.status_code",
+                  "value": {
+                    "intValue": "200"
+                  }
+                }
+              ],
+              "status": {}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
