@@ -821,3 +821,122 @@ def cluster_evaluate(
             console.print(f"{cluster.title or cluster_id}: mostly {majority} ({share}); cause names it: {named}")
 
     run_with_store(go)
+
+
+# Live scoring (phase 9) -----------------------------------------------------------------------------------------------
+
+live_patch_app = typer.Typer(help="Patches applied to live traffic at the proxy (the deliberate break).")
+app.add_typer(live_patch_app, name="live-patch")
+
+
+@app.command("mark")
+def mark_command(
+    profile: Annotated[str, typer.Argument(help="Profile the change applies to.")],
+    text: Annotated[str, typer.Argument(help='What changed, e.g. "new guardrail prompt".')],
+) -> None:
+    """Put a marker on a profile's timeline; it shows on charts and in alerts near it."""
+    marker = api_request("POST", "/api/markers", json={"profile": profile, "text": text})
+    assert isinstance(marker, dict)
+    console.print(f"marker {marker['id']} on {profile}: {text}")
+
+
+@live_patch_app.command("add")
+def live_patch_add(
+    patch_file: Annotated[Path, typer.Argument(help="Patch file (content_regex patches only).", exists=True)],
+    minutes: Annotated[float | None, typer.Option("--minutes", help="Lifetime (default: live.patch_minutes).")] = None,
+) -> None:
+    """Apply a patch file to live traffic until it expires (or `live-patch remove`)."""
+    added = api_request(
+        "POST", "/api/live-patches", json={"yaml": patch_file.read_text(encoding="utf-8"), "minutes": minutes}
+    )
+    assert isinstance(added, list)
+    for patch in added:
+        console.print(f"live patch [bold]{patch['name']}[/] ({patch['id']}) active for {_minutes_left(patch)} min")
+
+
+def _minutes_left(patch: dict[str, object]) -> int:
+    import time
+
+    expires = patch["expires_ms"]
+    assert isinstance(expires, int)
+    return max(0, round((expires - time.time() * 1000) / 60_000))
+
+
+@live_patch_app.command("list")
+def live_patch_list() -> None:
+    """List the active live patches."""
+    patches = api_request("GET", "/api/live-patches")
+    assert isinstance(patches, list)
+    if not patches:
+        console.print("no active live patches")
+    for patch in patches:
+        console.print(f"{patch['id']}  {patch['name']}  {patch['hits']} requests  {_minutes_left(patch)} min left")
+
+
+@live_patch_app.command("remove")
+def live_patch_remove(ref: Annotated[str, typer.Argument(help="Live patch id or name.")]) -> None:
+    """Stop a live patch now."""
+    removed = api_request("DELETE", f"/api/live-patches/{ref}")
+    assert isinstance(removed, dict)
+    console.print(f"removed {', '.join(removed['removed'])}")
+
+
+@app.command("traffic")
+def traffic_command(
+    profile: Annotated[str, typer.Argument(help="Profile to drive, e.g. paperpilot or opsdesk.")],
+    rate: Annotated[str, typer.Option("--rate", help="Runs per time, e.g. 1/min or 30/h.")] = "1/min",
+    max_runs: Annotated[int, typer.Option("--max-runs", min=1)] = 60,
+    max_minutes: Annotated[float, typer.Option("--max-minutes", min=0.1)] = 60,
+    seed: Annotated[int | None, typer.Option("--seed", help="Seed for the inputs drawn.")] = None,
+    yes: Annotated[bool, typer.Option("--yes", help="Skip the confirmation for long GPU runs.")] = False,
+) -> None:
+    """Send live runs (source = traffic) at a steady rate, with caps and stop rules."""
+    import httpx
+
+    from blackbox.live.traffic import Traffic, needs_confirmation, parse_rate
+    from blackbox.profiles import default_registry
+
+    try:
+        per_second = parse_rate(rate)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    config = settings()
+    try:
+        agent = default_registry(config.profiles).get(profile)
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    planned = min(max_runs, int(max_minutes * 60 * per_second) + 1)
+    if needs_confirmation(max_runs, max_minutes) and not yes:
+        typer.confirm(
+            f"Up to {planned} runs over up to {max_minutes:g} minutes use the GPU for a long time "
+            "(this PC has shut down during long GPU runs). Go on?",
+            abort=True,
+        )
+    api_request("GET", "/health")  # fail early if BlackBox isn't running
+
+    async def go(traffic_holder: list[Traffic]) -> None:
+        async with httpx.AsyncClient(base_url=config.server.base_url, trust_env=False) as client:
+            traffic = Traffic(
+                client,
+                profile,
+                agent.traffic_case,
+                rate_per_second=per_second,
+                max_runs=max_runs,
+                max_minutes=max_minutes,
+                seed=seed,
+                report=console.print,
+            )
+            traffic_holder.append(traffic)
+            await traffic.run()
+
+    holder: list[Traffic] = []
+    try:
+        asyncio.run(go(holder))
+    except KeyboardInterrupt:
+        if holder:
+            holder[0].summary.stopped = "Ctrl+C"
+    if holder:
+        summary = holder[0].summary
+        console.print(
+            f"traffic stopped ({summary.stopped}): {summary.started} runs, {summary.ok} ok, {summary.failed} failed"
+        )

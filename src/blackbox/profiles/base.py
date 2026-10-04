@@ -1,6 +1,7 @@
 """The `Profile` base class: everything BlackBox knows about one agent."""
 
 import json
+import random
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -39,6 +40,15 @@ class StartRequest:
             headers=dict(envelope.get("headers") or {}),
             timeout_seconds=timeout_seconds,
         )
+
+
+@dataclass
+class TrafficCase:
+    """One input for `blackbox traffic`: the text and options of `POST /api/runs`, and tags for the run."""
+
+    input: str
+    options: dict[str, Any] = field(default_factory=dict)
+    tags: dict[str, Any] = field(default_factory=dict)
 
 
 class Profile:
@@ -188,6 +198,12 @@ class Profile:
             for key in sorted(set(a) | set(b)):
                 fields[key] = {"equal": a.get(key) == b.get(key), "source": a.get(key), "replay": b.get(key)}
         return {"equal": a == b, "fields": fields}
+
+    # Traffic ---------------------------------------------------------------------------------------------------------
+
+    async def traffic_case(self, rng: random.Random) -> TrafficCase | None:
+        """An input for `blackbox traffic`, drawn with `rng`; `None` when this agent can't be driven that way."""
+        return None
 
     # After completion ------------------------------------------------------------------------------------------------
 

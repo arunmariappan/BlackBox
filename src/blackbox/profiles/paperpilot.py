@@ -1,10 +1,13 @@
 """PaperPilot's agentic RAG (`POST /api/v1/ask-agentic`), a .NET agent over arXiv papers."""
 
+import random
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
+from blackbox.datasets import DatasetQuestion
 from blackbox.otlp.decode import SpanData
-from blackbox.profiles.base import Profile, StartRequest
+from blackbox.profiles.base import Profile, StartRequest, TrafficCase
 from blackbox.runs.context import RunContext, StepDraft
 
 ROOT_SPAN = "agentic_rag_request"
@@ -17,6 +20,9 @@ NODES = frozenset(
         "answer_generation",
     }
 )
+QUESTIONS = Path("datasets/paperpilot/questions.yaml")
+ANSWERABLE_WEIGHT = 3  # traffic draws answerable questions three times as often as the others
+
 ENDING_MARKERS = (
     ("Generated answer from context", "answered"),
     ("Responded as out of scope", "out_of_scope"),
@@ -52,6 +58,22 @@ class PaperPilotProfile(Profile):
         if categories:
             run_input["categories"] = list(categories)
         return run_input
+
+    def traffic_questions(self) -> list[DatasetQuestion]:
+        """The question set traffic draws from (`questions` option), drafts included: only the text matters."""
+        from blackbox.datasets import load_dataset
+
+        path = Path(str(self.options.get("questions", QUESTIONS)))
+        return load_dataset(path).questions if path.exists() else []
+
+    async def traffic_case(self, rng: random.Random) -> TrafficCase | None:
+        """A question from the question set, weighted towards the answerable ones."""
+        questions = self.traffic_questions()
+        if not questions:
+            return None
+        weights = [ANSWERABLE_WEIGHT if q.expected_ending == "answered" else 1 for q in questions]
+        question = rng.choices(questions, weights=weights)[0]
+        return TrafficCase(question.question, tags={"case": question.id, "expected_ending": question.expected_ending})
 
     def build_request(self, run_input: dict[str, Any]) -> StartRequest:
         return StartRequest(

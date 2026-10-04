@@ -3,13 +3,14 @@ as it would to any outside agent: the agent at 8220, the environment's admin API
 checker, and the environment's tools through the proxy at 8213."""
 
 import json
+import random
 import re
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from blackbox.net import make_client
 from blackbox.otlp.decode import SpanData
-from blackbox.profiles.base import Profile, StartRequest
+from blackbox.profiles.base import Profile, StartRequest, TrafficCase
 from blackbox.runs.context import ExchangeData, RunContext, StepDraft
 
 if TYPE_CHECKING:
@@ -95,6 +96,17 @@ class OpsDeskProfile(Profile):
         if options.get("max_steps"):
             run_input["max_steps"] = int(options["max_steps"])
         return run_input
+
+    async def traffic_case(self, rng: random.Random) -> TrafficCase | None:
+        """A task from the environment, in `seeded` mode with a seed of its own."""
+        async with make_client(timeout=10) as client:
+            response = await client.get(f"{self.env_url}/_tasks")
+        response.raise_for_status()
+        tasks = sorted(task["id"] for task in response.json())
+        if not tasks:
+            return None
+        task, seed = rng.choice(tasks), rng.randrange(1_000_000)
+        return TrafficCase("", {"task": task, "mode": "seeded", "seed": seed}, {"task": task, "seed": seed})
 
     async def prepare_input(self, run_input: dict[str, Any], services: Services) -> dict[str, Any]:
         """Create the run's sandbox (from its task's scenario and seed) and fill in the task's instruction."""
