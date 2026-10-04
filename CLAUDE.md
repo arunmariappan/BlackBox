@@ -45,6 +45,9 @@ uv run blackbox run opsdesk --task fix-01-bad-deploy [--mode chaotic]   # or --a
 uv run opsdesk tasks list            uv run opsdesk check <sandbox> --task <id>
 uv run blackbox metrics recompute [--profile P]   # after changing a metric module's version (phase 7)
 uv run blackbox cluster --profile opsdesk [--no-names]   # re-cluster failures now (phase 8)
+uv run blackbox traffic paperpilot --rate 1/min --max-runs 30 --max-minutes 30   # live runs (phase 9; GPU: ask first)
+uv run blackbox live-patch add patch.yaml --minutes 30    # also `live-patch list`, `live-patch remove <id|name>`
+uv run blackbox mark paperpilot "new guardrail prompt"    # a marker on the timeline, shown in charts and alerts
 uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (phase 10)
 ```
 
@@ -99,6 +102,15 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
 - Tests use the `hashing` embedder (`tests/harness.py`); `fastembed` downloads `BAAI/bge-small-en-v1.5` on first use.
 - `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
   aligned comments stay as written.
+- Live scoring (phase 9): `run_completed` → checker and metrics inline → a `judge` job on the model lane if trusted
+  judges sample the run → failure detection → `detect`. Detectors are stateless (recomputed from the store), so
+  tests feed them histories directly (`tests/unit/test_detectors.py`) or insert scored runs and call
+  `services.live.engine.evaluate(profile)` with a fake clock. Workers in tests take `backoff_ms` and `poll_seconds`.
+- The rate-drop detector is a Bernoulli CUSUM (h = 6), not the plan's Beta-binomial window rule: the plan's two
+  targets can't both hold on noisy streams (numbers in `docs/plan/phase-9-live-scoring.md`). Lowering h is faster and
+  noisier; every watched signal adds false alarms.
+- The Telegram bot token sits in the request URL: never log URLs of that client. `live/telegram.py` installs a filter
+  that masks it in httpx's request log.
 - The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one
   top-level module.
 
