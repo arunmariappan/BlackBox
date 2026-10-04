@@ -1,0 +1,3 @@
+{% for banner in banners %}
+<div class="banner {{ banner.kind }}">{{ banner.html | safe }}</div>
+{% endfor %}

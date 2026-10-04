@@ -1,0 +1,19 @@
+{% macro text_block(text, limit=1200) -%}
+{%- if text is none -%}<span class="muted">—</span>
+{%- elif text | length > limit -%}
+<details><summary><span class="muted small">{{ text | length }} characters</span> {{ text[:200] }}…</summary><pre>{{ text }}</pre></details>
+{%- else -%}<pre>{{ text }}</pre>{%- endif -%}
+{%- endmacro %}
+
+{% macro messages(items) -%}
+{% for m in items %}
+<div class="msg {{ m.role }}">
+  <span class="role">{{ m.role }}</span>{% if m.tool_call_id %} <span class="muted small">call {{ m.tool_call_id }}</span>{% endif %}{% if m.tool_name %} <span class="muted small">{{ m.tool_name }}</span>{% endif %}
+  {% if m.content %}{{ text_block(m.content) }}{% endif %}
+  {% for call in m.tool_calls or [] %}
+  <div class="small">→ tool call <b>{{ call.name }}</b>{% if call.id %} <span class="muted">{{ call.id }}</span>{% endif %}</div>
+  <pre>{{ call.arguments | pretty }}</pre>
+  {% endfor %}
+</div>
+{% endfor %}
+{%- endmacro %}

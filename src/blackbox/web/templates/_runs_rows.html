@@ -1,0 +1,16 @@
+{% for run in runs %}
+<tr>
+  <td class="small"><a href="/runs/{{ run.id }}">{{ run.started_ms | time or run.updated_ms | time }}</a></td>
+  <td>{{ run.profile or "—" }}</td>
+  <td>{{ (run.input_text or "")[:90] }}{% if run.replay_of %} <a class="badge tape" href="/runs/{{ run.replay_of }}">replay</a>{% endif %}</td>
+  <td><span class="badge">{{ run.source }}</span></td>
+  <td><span class="badge {% if run.status == 'open' %}accent{% elif run.status == 'complete' %}{% else %}bad{% endif %}">{{ run.status }}</span></td>
+  <td>{% if run.ending %}<span class="badge {{ run.ending | ending_class }}">{{ run.ending }}</span>{% endif %}</td>
+  <td class="num">{{ run.step_count }}</td>
+  <td class="num">{{ (run.input_tokens + run.output_tokens) | num }}</td>
+  <td class="num">{{ run.duration_ms | duration }}</td>
+  <td>{% for badge in (run_badges or {}).get(run.id, []) %}<span class="badge {{ badge.css }}">{{ badge.text }}</span> {% endfor %}</td>
+</tr>
+{% else %}
+<tr><td colspan="10" class="empty">No runs yet. Point an agent's OTLP exporter at <code>/v1/traces</code>, or start one with <code>blackbox run</code>.</td></tr>
+{% endfor %}

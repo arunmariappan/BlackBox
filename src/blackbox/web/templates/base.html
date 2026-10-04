@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"{% if theme in ("light", "dark") %} data-theme="{{ theme }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BlackBox{% endblock %} · BlackBox</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+  <script src="/static/htmx-ext-sse.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body hx-ext="sse" sse-connect="/api/events">
+  <header class="top">
+    <span class="brand">■ BlackBox</span>
+    <nav>
+      {% for href, label in nav %}<a href="{{ href }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <span class="spacer"></span>
+    <span class="theme muted small">theme
+      <a href="/theme/light">light</a><a href="/theme/dark">dark</a><a href="/theme/auto">auto</a>
+    </span>
+  </header>
+  <div id="banners" hx-get="/banners" hx-trigger="sse:alert, sse:patch" hx-swap="innerHTML">
+    {% include "_banners.html" %}
+  </div>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

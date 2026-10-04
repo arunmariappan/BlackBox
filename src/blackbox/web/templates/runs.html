@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+<form class="filters" id="filters" hx-get="/runs/rows" hx-target="#runs-rows" hx-trigger="change" hx-push-url="false">
+  <label>Profile
+    <select name="profile">
+      <option value="">any</option>
+      {% for name in profiles %}<option value="{{ name }}" {% if filters.profile == name %}selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Ending <input name="ending" value="{{ filters.ending }}" size="14" placeholder="any"></label>
+  <label>Source
+    <select name="source">
+      <option value="">any</option>
+      {% for s in ["live", "traffic", "suite", "replay"] %}<option value="{{ s }}" {% if filters.source == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="">any</option>
+      {% for s in ["open", "complete", "failed_assembly"] %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  {% block extra_filters %}{% endblock %}
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>Started (UTC)</th><th>Profile</th><th>Input</th><th>Source</th><th>Status</th><th>Ending</th>
+      <th class="num">Steps</th><th class="num">Tokens</th><th class="num">Duration</th><th>Scores</th>
+    </tr>
+  </thead>
+  <tbody id="runs-rows" hx-get="/runs/rows" hx-include="#filters" hx-trigger="sse:run throttle:1s">
+    {% include "_runs_rows.html" %}
+  </tbody>
+</table>
+{% endblock %}
