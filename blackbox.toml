@@ -63,3 +63,37 @@ cache_dir = "data/models"
 min_cluster_size = 3
 onehot_weight = 0.5
 recluster_after = 10              # unclustered failures that trigger a re-clustering
+
+[live]
+sources = ["live", "traffic"]     # runs the detectors watch (replays and suites are left out)
+model_lane_max_wait_seconds = 600 # the model lane waits for agent calls in flight, at most this long per job
+clear_evaluations = 2             # an alert resolves after this many clear evaluations in a row
+cooldown_minutes = 30             # after closing, the same rule waits this long before it can open again
+patch_minutes = 30                # default lifetime of a live patch
+
+[live.rate_drop]
+baseline_runs = 100
+min_baseline = 30
+window = 20
+min_current = 8
+design_drop = 0.3                 # the drop the CUSUM is tuned to catch quickly
+threshold = 6.0                   # nats of evidence; lower is faster and noisier (docs/plan/phase-9)
+delta = 0.15                      # reported with each alert: P(current < baseline - delta)
+
+[live.shift]
+k = 0.5
+h = 5.0
+
+[live.new_mode]
+minutes = 30
+growth = 3
+
+[live.sampling.paperpilot]
+judge_rate = 0.3
+always_judge_flagged = true
+max_judge_calls_per_hour = 60
+
+[live.sampling.opsdesk]
+judge_rate = 0.3
+always_judge_flagged = true
+max_judge_calls_per_hour = 60

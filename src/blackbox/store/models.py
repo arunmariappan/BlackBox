@@ -316,6 +316,36 @@ class Alert(Base):
     __table_args__ = (Index(None, "profile", "rule", "status"),)
 
 
+class Marker(Base):
+    """A note on a profile's timeline ("new guardrail prompt"), shown on charts and in alerts."""
+
+    __tablename__ = "markers"
+
+    id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    profile: Mapped[str]
+    text: Mapped[str]
+    created_ms: Mapped[int]
+
+    __table_args__ = (Index(None, "profile", "created_ms"),)
+
+
+class LivePatch(Base):
+    """A `content_regex` request patch applied to live traffic at the proxy until it expires or is removed."""
+
+    __tablename__ = "live_patches"
+
+    id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    name: Mapped[str]
+    spec: Mapped[dict[str, Any]] = mapped_column(default=dict)  # the patch, as in a patch file
+    status: Mapped[str] = mapped_column(default="active")  # active, removed, expired
+    hits: Mapped[int] = mapped_column(default=0)  # requests it changed
+    created_ms: Mapped[int]
+    expires_ms: Mapped[int]
+    ended_ms: Mapped[int | None]
+
+    __table_args__ = (Index(None, "status"),)
+
+
 class Job(Base):
     """Durable work queue."""
 

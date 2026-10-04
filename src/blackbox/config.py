@@ -9,7 +9,7 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -61,6 +61,58 @@ class ClustersConfig(BaseModel):
     rename_change: float = Field(default=0.3, ge=0, le=1)  # regenerate a name when members change by more
 
 
+class SamplingConfig(BaseModel):
+    judge_rate: float = Field(default=0.3, ge=0, le=1)  # share of ordinary runs that trusted judges score
+    always_judge_flagged: bool = True  # runs with a metric flag or a failure ending are always judged
+    max_judge_calls_per_hour: int = Field(default=60, ge=0)
+
+
+class RateDropConfig(BaseModel):
+    """Rate drops: a Bernoulli CUSUM over the current window against a lagged baseline (see `live.detectors`)."""
+
+    baseline_runs: int = Field(default=100, ge=1)
+    min_baseline: int = Field(default=30, ge=1)
+    window: int = Field(default=20, ge=1)
+    min_current: int = Field(default=8, ge=1)
+    design_drop: float = Field(default=0.3, gt=0, lt=1)  # the drop the test is tuned to catch quickly
+    threshold: float = Field(default=6.0, gt=0)  # h, in nats of evidence
+    delta: float = Field(default=0.15, ge=0, lt=1)  # reported: P(current rate < baseline - delta)
+
+
+class ShiftConfig(BaseModel):
+    k: float = Field(default=0.5, ge=0)
+    h: float = Field(default=5.0, gt=0)
+    z_cap: float = Field(default=4.0, gt=0)  # one outlier alone can't cross h
+
+
+class NewModeConfig(BaseModel):
+    minutes: float = Field(default=30, gt=0)
+    growth: int = Field(default=3, ge=1)
+
+
+class LiveConfig(BaseModel):
+    sampling: dict[str, SamplingConfig] = Field(default_factory=dict)
+    sources: list[str] = Field(default_factory=lambda: ["live", "traffic"])  # runs the detectors watch
+    model_lane_max_wait_seconds: float = Field(default=600, ge=0)
+    rate_drop: RateDropConfig = Field(default_factory=RateDropConfig)
+    shift: ShiftConfig = Field(default_factory=ShiftConfig)
+    new_mode: NewModeConfig = Field(default_factory=NewModeConfig)
+    clear_evaluations: int = Field(default=2, ge=1)
+    cooldown_minutes: float = Field(default=30, ge=0)
+    patch_minutes: float = Field(default=30, gt=0)
+
+    def sampling_for(self, profile: str) -> SamplingConfig:
+        return self.sampling.get(profile) or SamplingConfig()
+
+
+class AlertsConfig(BaseModel):
+    """Telegram: a separate bot from PaperPilot's. The token is a secret: never logged, never stored."""
+
+    telegram_bot_token: SecretStr | None = None
+    telegram_chat_id: str | None = None
+    telegram_api: str = "https://api.telegram.org"
+
+
 class UpstreamConfig(BaseModel):
     name: str
     listen_port: int = Field(ge=0, le=65535)
@@ -108,6 +160,8 @@ class Settings(BaseSettings):
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
     judges: JudgesConfig = Field(default_factory=JudgesConfig)
     clusters: ClustersConfig = Field(default_factory=ClustersConfig)
+    live: LiveConfig = Field(default_factory=LiveConfig)
+    alerts: AlertsConfig = Field(default_factory=AlertsConfig)
     profiles: dict[str, dict[str, Any]] = Field(default_factory=dict)  # per-profile options, e.g. base_url
     log_level: Literal["debug", "info", "warning", "error"] = "info"
 
