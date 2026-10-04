@@ -148,37 +148,37 @@ can be trusted on tasks that have a right answer.
 ## Tasks
 
 ### 6.1 Environment
-- [ ] Sandbox model, scenarios (one per task family), seeded and chaotic modes, transient failure injection.
-- [ ] Agent-facing and admin endpoints, action log.
-- [ ] `opsdesk env` command.
+- [x] Sandbox model, scenarios (one per task family), seeded and chaotic modes, transient failure injection.
+- [x] Agent-facing and admin endpoints, action log.
+- [x] `opsdesk env` command.
 
 ### 6.2 Agent
-- [ ] Tool definitions (JSON schemas from Pydantic models), system prompt with policies and `sdk.now()`, the loop,
+- [x] Tool definitions (JSON schemas from Pydantic models), system prompt with policies and `sdk.now()`, the loop,
       `max_steps`, endings.
-- [ ] `opsdesk agent` command; SDK tracing.
+- [x] `opsdesk agent` command; SDK tracing.
 
 ### 6.3 Tasks and checker
-- [ ] The 25 task files; check schema (Pydantic); checker for state, tickets, policies P1–P5, forbidden actions and
+- [x] The 25 task files; check schema (Pydantic); checker for state, tickets, policies P1–P5, forbidden actions and
       answers.
-- [ ] `opsdesk tasks list`, `opsdesk check <sandbox> --task <id>`.
+- [x] `opsdesk tasks list`, `opsdesk check <sandbox> --task <id>`.
 
 ### 6.4 Profile and stateful replay
-- [ ] OpsDesk profile: start, prepare, checker hook, nodes, identifier paths.
-- [ ] Sync-forwarding in sessions for stateful upstreams.
-- [ ] Identifier aliasing: alias capture, request rewriting, response rewriting, alias table in the fidelity report.
-- [ ] SDK determinism shims, `recorded_values`, `GET /api/sessions/{id}/values`, baggage handling.
+- [x] OpsDesk profile: start, prepare, checker hook, nodes, identifier paths.
+- [x] Sync-forwarding in sessions for stateful upstreams.
+- [x] Identifier aliasing: alias capture, request rewriting, response rewriting, alias table in the fidelity report.
+- [x] SDK determinism shims, `recorded_values`, `GET /api/sessions/{id}/values`, baggage handling.
 
 ### 6.5 Baseline runs and judge
 - [ ] After you agree: every task twice in `seeded` mode and once in `chaotic` mode (75 runs; roughly 40–60 minutes
       of GPU time, in batches). This is OpsDesk's first pass rate with `qwen3.5:4b`.
-- [ ] `ops_task_success` judge and its agreement with the checker.
-- [ ] Run page: checker result with each failed check, the action log, the alias table for replays.
+- [x] `ops_task_success` judge and its agreement with the checker.
+- [x] Run page: checker result with each failed check, the action log, the alias table for replays.
 
 ## Tests
-- [ ] Each scenario builds its sandbox; each check type passes and fails on hand-made states and action logs.
-- [ ] Policies: P1 fails when a change comes before its ticket; P5 depends on the scenario clock.
-- [ ] `opsdesk` imports nothing from `blackbox` except `blackbox.sdk` (an import test).
-- [ ] With a scripted fake model (no GPU):
+- [x] Each scenario builds its sandbox; each check type passes and fails on hand-made states and action logs.
+- [x] Policies: P1 fails when a change comes before its ticket; P5 depends on the scenario clock.
+- [x] `opsdesk` imports nothing from `blackbox` except `blackbox.sdk` (an import test).
+- [x] With a scripted fake model (no GPU):
   - a `seeded` run replays exactly, and the checker gives the same result for the replay;
   - a `chaotic` run replays exactly although the environment would now return other ids and times;
   - a fork from step 4 of a `chaotic` run that created a ticket at step 2 updates that ticket successfully at a live
@@ -192,3 +192,37 @@ can be trusted on tasks that have a right answer.
 - [ ] `ops_task_success` has its agreement with the checker shown with an interval, and its trust gate result
       recorded.
 - [ ] A small set of OpsDesk runs is exported as bundles to `baselines/opsdesk-core/`, ready for phase 10.
+
+## What was built (2026-10-04)
+
+- `src/opsdesk/env/` (sandbox model, 17 scenarios, the FastAPI environment with its tools and admin API),
+  `src/opsdesk/tasks/` (the 25 task files, their Pydantic schema and the checker), `src/opsdesk/agent/` (tools from
+  Pydantic models, the loop, the FastAPI service), `opsdesk env|agent|tasks list|check`.
+- BlackBox side: `profiles/opsdesk.py` (sandbox creation before a run, tool views of the environment's exchanges,
+  nodes `plan` and the tool name, a fresh sandbox per replay, the checker after completion), `proxy/stateful.py`
+  (sync-forwarding, identifier aliasing), the SDK's determinism shims (`sdk.now`, `sdk.uuid4`, `sdk.random`, recorded
+  as span events and served back at `GET /api/sessions/{id}/values`), and the `ops_task_success` judge, calibrated
+  against the checker.
+- A first version of the durable worker (`live/worker.py`): the `run_completed` job runs each profile's
+  `after_complete` (OpsDesk's checker). Phase 9 adds lanes, fan-out and its tests.
+- Decisions on details the plan left open:
+  - BlackBox never imports OpsDesk: the profile reads tasks (`GET /_tasks/{id}`) and runs the checker
+    (`POST /_sandboxes/{id}/check`) over the environment's admin API, as it would for any outside agent.
+  - The checker always checks all five policies (they are in every system prompt); a task's `policies` list names
+    the ones it is about. Checks are structured YAML: state paths, tickets (with `new_only`, priorities, comment
+    words), forbidden and required actions, `no_changes`, and answers (`contains_any`, `contains_all`, `regex`).
+  - The seeded clock moves 7 seconds per tool call; transient 503s and a failing runbook action are part of
+    scenarios, so the error-recovery tasks work in both modes.
+  - `optimal_steps` counts BlackBox steps (model calls and tool calls): k tool calls plus k + 1 model calls.
+  - A live call to a stateful upstream is buffered (the environment's replies are small JSON) so live ids can be
+    rewritten back to tape ids before the agent sees them.
+  - **Found on the way:** dependency health has to propagate transitively (web-frontend depends on checkout-api,
+    which depends on cache); the environment now refreshes to a fixed point.
+- Tests with a scripted fake model: seeded and chaotic runs replay exactly; the checker passes on the replay's own
+  sandbox; a fork from step 4 after a ticket was created at step 2 comments on that ticket through an alias, and
+  without aliasing gets 404; a fork's sandbox has the state of the steps before it; `sdk.now()` in a prompt replays
+  exactly.
+- **Not done here (needs Ollama, about an hour of GPU, and you):** 6.5's 75 baseline runs, the first pass rate per
+  category, `ops_task_success`'s agreement with an interval, and the `baselines/opsdesk-core/` bundles. Start them
+  with `blackbox run opsdesk --all-tasks --repeats 2` (seeded) and `--mode chaotic`, after `opsdesk env` and
+  `opsdesk agent` are running.
