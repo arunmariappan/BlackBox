@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ judge.name }}{% endblock %}
+{% macro stats_block(title, s) %}
+{% if s %}
+<div class="card">
+  <div class="label">{{ title }}</div>
+  {% if s.n %}
+  <div class="value">κ {{ "%.2f" | format(s.kappa) if s.kappa is not none else "undefined" }}</div>
+  <div class="small">95% interval {{ "%.2f" | format(s.ci[0]) if s.ci[0] is not none else "?" }} – {{ "%.2f" | format(s.ci[1]) if s.ci[1] is not none else "?" }} · n {{ s.n }}{% if s.unsure %} · {{ s.unsure }} unsure left out{% endif %}</div>
+  <div class="small">agreement {{ "%.0f" | format(s.percent) if s.percent is not none else "?" }}% · precision on fail {{ "%.2f" | format(s.precision_fail) if s.precision_fail is not none else "—" }} · recall on fail {{ "%.2f" | format(s.recall_fail) if s.recall_fail is not none else "—" }}</div>
+  <table class="small" style="margin-top:6px; width:auto">
+    <tr><th>judge ↓ / truth →</th>{% for l in s.labels %}<th>{{ l }}</th>{% endfor %}</tr>
+    {% for row in s.confusion %}<tr><th>{{ s.labels[loop.index0] }}</th>{% for c in row %}<td class="num">{{ c }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  {% else %}<div class="muted">no pairs yet</div>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+{% block content %}
+<div class="flex"><h1>{{ judge.name }}</h1>
+  <form method="post" action="/judges/{{ judge.name }}/calibrate" class="right"><button class="primary" type="submit">Calibrate</button></form>
+</div>
+{% if error %}<p><span class="badge bad">{{ error }}</span></p>{% endif %}
+<dl class="kv">
+  <dt>profile</dt><dd>{{ judge.profile }}</dd>
+  <dt>applies when</dt><dd><code>{{ judge.applies_when or "always" }}</code></dd>
+  <dt>compared with</dt><dd>{{ "the checker" if judge.agreement_source == "checker" else "your labels for “" ~ judge.label_question ~ "”" }}</dd>
+  <dt>current version</dt><dd><code>{{ judge.version }}</code> · model {{ judge.model }} · options {{ judge.options }}</dd>
+  <dt>prompt</dt><dd><details><summary class="small">{{ judge.path.name if judge.path else "" }}</summary><pre>{{ judge.template }}</pre></details></dd>
+</dl>
+{% for row in versions | reverse %}
+{% set s = stats.get(row.version) or {} %}
+<h2><code>{{ row.version }}</code>{% if row.version == judge.version %} <span class="badge accent">current</span>{% endif %} {% if row.trusted %}<span class="badge ok">trusted</span>{% else %}<span class="badge dim">untrusted</span>{% endif %}</h2>
+{% if s.gate_reasons %}<p class="small muted">Trust gate: {{ s.gate_reasons | join("; ") }}</p>{% endif %}
+<div class="grid">
+  {{ stats_block("held out (decides trust)", s.held_out) }}
+  {{ stats_block("tuning", s.tuning) }}
+  {{ stats_block("all", s.all) }}
+</div>
+{% if s.all and s.all.disagreements %}
+<h3>Disagreements</h3>
+<p>{% for run_id in s.all.disagreements %}<a href="/runs/{{ run_id }}">{{ run_id[-8:] }}</a> {% endfor %}</p>
+{% endif %}
+{% else %}
+<p class="empty">This judge hasn't run yet: <code>blackbox judge run {{ judge.name }}</code>.</p>
+{% endfor %}
+{% endblock %}

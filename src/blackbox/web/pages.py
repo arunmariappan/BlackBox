@@ -4,9 +4,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from sqlalchemy import select
 
 from blackbox.runs.context import ExchangeData, load_run_context
 from blackbox.services import Services
+from blackbox.store.models import Score
 from blackbox.web.format import waterfall
 
 router = APIRouter()
@@ -35,6 +37,33 @@ async def _runs(request: Request) -> tuple[list[Any], dict[str, str]]:
     return list(runs), filters
 
 
+async def run_badges(services: Services, run_ids: list[str]) -> dict[str, list[dict[str, str]]]:
+    """Badges per run for the runs list: judge verdicts of current versions (greyed out when untrusted), the
+    checker, and whatever later phases add."""
+    from blackbox.judges.calibrate import trusted_versions
+
+    if not run_ids:
+        return {}
+    trusted = await trusted_versions(services.store)
+    current = {name: judge.version for name, judge in services.judges.items()}
+    async with services.store.read() as s:
+        rows = (
+            await s.execute(select(Score).where(Score.run_id.in_(run_ids), Score.kind.in_(("judge", "checker"))))
+        ).scalars()
+        badges: dict[str, list[dict[str, str]]] = {}
+        for score in rows:
+            if score.kind == "judge" and current.get(score.name) != score.version:
+                continue
+            css = "ok" if score.label == "pass" else "bad" if score.label == "fail" else "warn"
+            if score.kind == "judge" and score.version not in trusted.get(score.name, set()):
+                css += " dim"
+            badges.setdefault(score.run_id, []).append({"css": css, "text": f"{score.name}: {score.label}"})
+    for provider in services.badge_hooks:
+        for run_id, extra in (await provider(services, run_ids)).items():
+            badges.setdefault(run_id, []).extend(extra)
+    return badges
+
+
 @router.get("/", include_in_schema=False)
 async def index() -> Response:
     return RedirectResponse("/runs", status_code=307)
@@ -44,13 +73,17 @@ async def index() -> Response:
 async def runs_page(request: Request) -> HTMLResponse:
     runs, filters = await _runs(request)
     services = services_of(request)
-    return render(request, "runs.html", runs=runs, filters=filters, profiles=services.profiles.names())
+    badges = await run_badges(services, [run.id for run in runs])
+    return render(
+        request, "runs.html", runs=runs, filters=filters, profiles=services.profiles.names(), run_badges=badges
+    )
 
 
 @router.get("/runs/rows", response_class=HTMLResponse, include_in_schema=False)
 async def runs_rows(request: Request) -> HTMLResponse:
     runs, _ = await _runs(request)
-    return render(request, "_runs_rows.html", runs=runs)
+    badges = await run_badges(services_of(request), [run.id for run in runs])
+    return render(request, "_runs_rows.html", runs=runs, run_badges=badges)
 
 
 @router.get("/runs/{ref}", response_class=HTMLResponse, include_in_schema=False)
@@ -65,6 +98,9 @@ async def run_page(request: Request, ref: str) -> HTMLResponse:
     exchanges = {exchange.id: exchange for exchange in ctx.exchanges}
     span_by_id = ctx.by_id
     scores = await services.store.reader.scores(run.id)
+    from blackbox.judges.calibrate import trusted_versions
+
+    trusted = await trusted_versions(services.store)
     context: dict[str, Any] = {
         "run": run,
         "ctx": ctx,
@@ -74,6 +110,8 @@ async def run_page(request: Request, ref: str) -> HTMLResponse:
         "span_by_id": span_by_id,
         "waterfall": waterfall(ctx, profile.node_spans if profile else frozenset()),
         "scores": scores,
+        "trusted": trusted,
+        "current_judges": {name: judge.version for name, judge in services.judges.items()},
         "panels": [],
         "tab": request.query_params.get("tab", "steps"),
     }

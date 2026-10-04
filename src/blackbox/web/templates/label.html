@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Label{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>Label</h1>
+  {% for q in questions %}<a class="badge {% if q.name == question.name %}accent{% endif %}" href="/label?question={{ q.name }}">{{ q.name }}</a>{% endfor %}
+  <span class="right muted small">keys: <span class="kbd">p</span> pass · <span class="kbd">f</span> fail · <span class="kbd">u</span> unsure · <span class="kbd">n</span> note · <span class="kbd">j</span>/<span class="kbd">k</span> next/previous</span>
+</div>
+<div id="label-card">
+{% include "_label_card.html" %}
+</div>
+{% endblock %}

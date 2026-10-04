@@ -1,0 +1,6 @@
+<form hx-post="/label" hx-target="#label-card" class="flex">
+  <input type="hidden" name="run_id" value="{{ run_id }}">
+  <input type="hidden" name="question" value="{{ question }}">
+  <input type="hidden" name="value" value="{{ existing.value if existing else 'unsure' }}">
+  <input name="note" size="50" autofocus placeholder="note (Enter saves)" value="{{ existing.note if existing and existing.note else '' }}">
+</form>

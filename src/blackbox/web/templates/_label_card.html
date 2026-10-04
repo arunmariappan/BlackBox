@@ -1,0 +1,50 @@
+{% from "_macros.html" import text_block %}
+<p class="small muted">{{ remaining }} runs left to label for “{{ question.name }}”.</p>
+{% if run is defined and run %}
+<div class="card">
+  <div class="label">{{ question.text }}</div>
+  <p class="small"><a href="/runs/{{ run.id }}">{{ run.id }}</a> · ending {{ run.ending }}</p>
+  <h3>Question</h3>
+  <pre>{{ run.input_text }}</pre>
+  {% if hits %}
+  <details><summary>Excerpts ({{ hits | length }})</summary>
+  {% for hit in hits %}<div class="small"><b>[{{ loop.index }}] arXiv:{{ hit.paper_id }}</b> {{ hit.title or "" }}</div><pre>{{ hit.text }}</pre>{% endfor %}
+  </details>
+  {% endif %}
+  <h3>Answer</h3>
+  {{ text_block(answer if answer is string else (answer | pretty), 5000) }}
+  <form class="flex" id="label-form">
+    <input type="hidden" name="run_id" value="{{ run.id }}">
+    <input type="hidden" name="question" value="{{ question.name }}">
+    <button type="button" hx-target="#label-card" class="{% if existing and existing.value == 'pass' %}primary{% endif %}"
+      hx-post="/label" hx-vals='{"value": "pass"}' hx-include="#label-form" hx-trigger="click, keyup[key=='p' && !['INPUT','TEXTAREA'].includes(event.target.tagName)] from:body">pass <span class="kbd">p</span></button>
+    <button type="button" hx-target="#label-card" class="{% if existing and existing.value == 'fail' %}primary{% endif %}"
+      hx-post="/label" hx-vals='{"value": "fail"}' hx-include="#label-form" hx-trigger="click, keyup[key=='f' && !['INPUT','TEXTAREA'].includes(event.target.tagName)] from:body">fail <span class="kbd">f</span></button>
+    <button type="button" hx-target="#label-card" class="{% if existing and existing.value == 'unsure' %}primary{% endif %}"
+      hx-post="/label" hx-vals='{"value": "unsure"}' hx-include="#label-form" hx-trigger="click, keyup[key=='u' && !['INPUT','TEXTAREA'].includes(event.target.tagName)] from:body">unsure <span class="kbd">u</span></button>
+    <span id="note-slot" hx-get="/label/note?run={{ run.id }}&question={{ question.name }}" hx-trigger="keyup[key=='n' && !['INPUT','TEXTAREA'].includes(event.target.tagName)] from:body" hx-swap="innerHTML">
+      {% if existing and existing.note %}<span class="small muted">note: {{ existing.note }}</span>{% endif %}
+    </span>
+    <span class="right">
+      {% if previous_id %}<a href="/label?question={{ question.name }}&run={{ previous_id }}" hx-get="/label?question={{ question.name }}&run={{ previous_id }}" hx-target="#label-card" hx-trigger="click, keyup[key=='k' && !['INPUT','TEXTAREA'].includes(event.target.tagName)] from:body">← previous <span class="kbd">k</span></a>{% endif %}
+      {% if next_id %}<a href="/label?question={{ question.name }}&run={{ next_id }}" hx-get="/label?question={{ question.name }}&run={{ next_id }}" hx-target="#label-card" hx-trigger="click, keyup[key=='j' && !['INPUT','TEXTAREA'].includes(event.target.tagName)] from:body">next <span class="kbd">j</span> →</a>{% endif %}
+    </span>
+  </form>
+  {% if revealed %}
+  <div class="card" style="margin-top:10px">
+    <div class="label">Saved: {{ saved }}. The judge ({{ question.judge }}) said</div>
+    {% if verdict %}
+      {% set judge_label = verdict.label %}
+      <div class="value"><span class="badge {% if judge_label == saved %}ok{% elif saved == 'unsure' %}{% else %}bad{% endif %}">{{ judge_label }}</span>
+        {% if saved != 'unsure' and judge_label != saved %}<span class="badge bad">disagrees with you</span>{% elif judge_label == saved %}<span class="badge ok">agrees</span>{% endif %}</div>
+      {% if verdict.rationale %}<p>{{ verdict.rationale }}</p>{% endif %}
+      {% for claim in (verdict.details.parsed or {}).get("unsupported_claims", []) %}<div class="small">unsupported: {{ claim }}</div>{% endfor %}
+    {% else %}
+      <div class="muted">nothing yet: the current version hasn't judged this run.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<p class="empty">Nothing left to label for “{{ question.name }}”.</p>
+{% endif %}

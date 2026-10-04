@@ -93,6 +93,7 @@ class StartRunBody(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
     source: str = "live"
     wait: bool = False
+    tags: dict[str, Any] = Field(default_factory=dict)
 
 
 @router.post("/runs")
@@ -103,7 +104,7 @@ async def post_run(request: Request, body: StartRunBody) -> dict[str, Any]:
     except KeyError as exc:
         raise HTTPException(404, str(exc)) from None
     run_input = profile.parse_input(body.input, **body.options) if isinstance(body.input, str) else body.input
-    started = await start_run(services, body.profile, run_input, source=body.source, wait=body.wait)
+    started = await start_run(services, body.profile, run_input, source=body.source, wait=body.wait, tags=body.tags)
     return {
         "run_id": started.run_id,
         "trace_id": started.trace_id,

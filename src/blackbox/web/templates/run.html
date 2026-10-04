@@ -37,6 +37,29 @@
 <h2>Output</h2>
 {% if output is string %}{{ text_block(output) }}{% elif output is not none %}{{ text_block(output | pretty, 3000) }}{% else %}<p class="muted">No output recorded.</p>{% endif %}
 
+{% set judge_scores = scores | selectattr("kind", "equalto", "judge") | list %}
+{% set checker_scores = scores | selectattr("kind", "equalto", "checker") | list %}
+{% if judge_scores or checker_scores %}
+<h2>Verdicts</h2>
+{% for score in checker_scores %}
+<div class="card"><div class="flex"><b>checker</b> <span class="badge {{ 'ok' if score.label == 'pass' else 'bad' }}">{{ score.label }}</span></div>
+  {% for check in score.details.get("failed", []) %}<div class="small">✗ {{ check }}</div>{% endfor %}</div>
+{% endfor %}
+{% for score in judge_scores %}
+{% set is_trusted = score.version in trusted.get(score.name, []) %}
+<div class="card {% if not is_trusted %}dim{% endif %}" style="margin:6px 0">
+  <div class="flex"><b>{{ score.name }}</b> <code class="small">{{ score.version }}</code>
+    <span class="badge {{ 'ok' if score.label == 'pass' else 'bad' if score.label == 'fail' else 'warn' }}{% if not is_trusted %} dim{% endif %}">{{ score.label }}</span>
+    {% if not is_trusted %}<span class="small muted">untrusted</span>{% endif %}
+    {% if current_judges.get(score.name) != score.version %}<span class="small muted">older version</span>{% endif %}
+  </div>
+  {% if score.rationale %}<p class="small">{{ score.rationale }}</p>{% endif %}
+  {% for claim in (score.details.parsed or {}).get("unsupported_claims", []) %}<div class="small">unsupported: {{ claim }}</div>{% endfor %}
+  {% for problem in (score.details.parsed or {}).get("problems", []) %}<div class="small">problem: {{ problem }}</div>{% endfor %}
+  {% if score.details.error %}<div class="small"><span class="badge bad">{{ score.details.error }}</span></div>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
 {% for panel in panels %}{{ panel | safe }}{% endfor %}
 
 <div class="tabs">

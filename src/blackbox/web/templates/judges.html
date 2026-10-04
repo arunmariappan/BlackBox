@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Judges{% endblock %}
+{% block content %}
+<h1>Judges</h1>
+<p class="muted">A judge is trusted only after its agreement with your held-out labels passes the gate: at least 20 labels, κ ≥ 0.6 and the 95% interval's lower bound ≥ 0.3. Untrusted judges are shown greyed out and never drive failures, alerts or verdicts.</p>
+<table>
+  <thead><tr><th>Judge</th><th>Profile</th><th>Compared with</th><th>Current version</th><th>Held-out κ (95% interval)</th><th class="num">n</th><th>Trust</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+  {% set judge = row.judge %}
+  {% set current = (row.versions | selectattr("version", "equalto", judge.version) | list | first) if row.versions else none %}
+  {% set held = current.agreement.held_out if current and current.agreement else none %}
+  <tr>
+    <td><a href="/judges/{{ judge.name }}">{{ judge.name }}</a></td>
+    <td>{{ judge.profile }}</td>
+    <td>{{ "the checker" if judge.agreement_source == "checker" else "your labels: " ~ (judge.label_question or "—") }}</td>
+    <td><code>{{ judge.version }}</code>{% if row.versions | length > 1 %} <span class="muted small">({{ row.versions | length }} versions)</span>{% endif %}</td>
+    <td>{% if held and held.kappa is not none %}{{ "%.2f" | format(held.kappa) }} ({{ "%.2f" | format(held.ci[0]) if held.ci[0] is not none else "?" }} – {{ "%.2f" | format(held.ci[1]) if held.ci[1] is not none else "?" }}){% else %}<span class="muted">not calibrated</span>{% endif %}</td>
+    <td class="num">{{ held.n if held else 0 }}</td>
+    <td>{% if current and current.trusted %}<span class="badge ok">trusted</span>{% else %}<span class="badge dim">untrusted</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

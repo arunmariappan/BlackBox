@@ -70,6 +70,19 @@
   </tbody>
 </table>
 {% endif %}
+{% if report.judges %}
+<h2>Judges</h2>
+<table>
+  <thead><tr><th>Judge</th><th>Source</th><th>Replay</th><th>Change</th></tr></thead>
+  <tbody>
+  {% for name, j in report.judges.items() %}
+  <tr><td>{{ name }}</td>
+    {% for which in ("source", "replay") %}{% set v = j.get(which, {}) %}<td>{% if v.label %}<span class="badge {{ 'ok' if v.label == 'pass' else 'bad' }}">{{ v.label }}</span>{% else %}<span class="muted small">{{ v.status }}</span>{% endif %}</td>{% endfor %}
+    <td>{% if j.change %}<span class="badge {{ 'ok' if j.change == 'better' else 'bad' if j.change == 'worse' else '' }}">{{ j.change }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% for section in report.get("sections", []) %}{{ section | safe }}{% endfor %}
 {% endif %}
 {% endblock %}
