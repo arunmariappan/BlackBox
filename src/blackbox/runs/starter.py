@@ -143,6 +143,7 @@ async def start_run(
 ) -> StartedRun:
     """Start a run of `profile_name`. With `wait=False` the entry request is sent in the background."""
     profile = services.profiles.get(profile_name)
+    run_input = await profile.prepare_input(run_input, services)
     request = profile.build_request(run_input)
     started = await create_run(services, profile_name, request, source=source, tags=tags)
     if wait:

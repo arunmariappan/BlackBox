@@ -51,3 +51,8 @@ base_url = "http://127.0.0.1:8100"
 top_k = 3
 use_hybrid = true
 model = "qwen3.5:4b"              # PaperPilot's own default stays qwen3.5:9b; runs BlackBox starts ask for 4b
+
+[profiles.opsdesk]
+agent_url = "http://127.0.0.1:8220"
+env_url = "http://127.0.0.1:8221"   # admin calls (sandboxes, checker); the agent's tools go through the proxy (8213)
+model = "qwen3.5:4b"

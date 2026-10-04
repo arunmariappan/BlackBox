@@ -5,11 +5,12 @@ from typing import Any
 
 from blackbox.otlp.decode import SpanData
 from blackbox.profiles.base import Profile, StartRequest
+from blackbox.profiles.opsdesk import OpsDeskProfile
 from blackbox.profiles.paperpilot import PaperPilotProfile
 
 __all__ = ["Profile", "ProfileRegistry", "StartRequest", "default_registry"]
 
-BUILTIN: list[type[Profile]] = [PaperPilotProfile]
+BUILTIN: list[type[Profile]] = [PaperPilotProfile, OpsDeskProfile]
 
 
 class ProfileRegistry:

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from blackbox.proxy.sessions import ReplaySession
     from blackbox.proxy.views import ExchangeView
     from blackbox.services import Services
+    from blackbox.store.models import Run
 
 
 @dataclass
@@ -73,6 +74,10 @@ class Profile:
     def parse_input(self, text: str, **options: Any) -> dict[str, Any]:
         """Turn command-line text into the input this agent takes."""
         return {"input": text, **options}
+
+    async def prepare_input(self, run_input: dict[str, Any], services: Services) -> dict[str, Any]:
+        """Anything to do before a run starts (OpsDesk creates the run's sandbox); returns the final input."""
+        return run_input
 
     def build_request(self, run_input: dict[str, Any]) -> StartRequest:
         raise NotImplementedError(f"profile {self.name!r} cannot start runs")
@@ -143,6 +148,10 @@ class Profile:
                 out.append(DropJsonPath(item["drop"]))
         return out
 
+    def identifier_paths(self, method: str, path: str) -> list[str]:
+        """Stateful upstreams: where a response carries an id the agent will use later (`$.id` of a new ticket)."""
+        return []
+
     def rebuild_input(self, ctx: RunContext) -> StartRequest | None:
         """The entry request of a run BlackBox didn't start, rebuilt from its spans (None: can't)."""
         return None
@@ -171,3 +180,9 @@ class Profile:
             for key in sorted(set(a) | set(b)):
                 fields[key] = {"equal": a.get(key) == b.get(key), "source": a.get(key), "replay": b.get(key)}
         return {"equal": a == b, "fields": fields}
+
+    # After completion ------------------------------------------------------------------------------------------------
+
+    async def after_complete(self, services: Services, run: Run, ctx: RunContext) -> None:
+        """Work after a run completes (OpsDesk runs its checker). The worker calls it on `run_completed`."""
+        return None
