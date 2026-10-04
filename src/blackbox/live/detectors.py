@@ -14,8 +14,9 @@ after a median of 5 runs and at most 8; a ±5-point wobble raises one false alar
 faster with 2.5 times the false alarms. The plan's Beta-binomial probability is still computed and reported with every
 result, so an alert reads in the plan's terms.
 
-**Shift** (latency, tokens, steps): a one-sided CUSUM on values standardised against the baseline's median and MAD
-(k = 0.5, h = 5). Each run's z is capped at `z_cap`, so one outlier alone can't cross h.
+**Shift** (latency, tokens, steps): a one-sided CUSUM on log values standardised against the baseline's median and
+MAD (k = 0.5, h = 5). Logs, because these values are skewed: on raw values a steady log-normal latency alarms by
+itself. Each run's z is capped at `z_cap`, so one outlier alone can't cross h.
 
 **New failure mode:** a cluster created in the last 30 minutes, or one that gained `growth` members in that time.
 """
@@ -157,15 +158,16 @@ class Shift:
 
 
 def shift_up(baseline: Sequence[float], current: Sequence[float], cfg: ShiftConfig, *, min_baseline: int = 30) -> Shift:
-    """Has the value (latency, tokens, steps) shifted up? One-sided CUSUM on robust z-scores."""
+    """Has the value (latency, tokens, steps) shifted up? One-sided CUSUM on robust z-scores of log values."""
     if len(baseline) < min_baseline or not current:
         return Shift("insufficient", threshold=cfg.h, baseline_n=len(baseline), current_n=len(current))
-    median = statistics.median(baseline)
-    mad = statistics.median(abs(x - median) for x in baseline)
-    scale = max(1.4826 * mad, 0.05 * abs(median), 1e-9)
+    logs = [math.log1p(max(x, 0.0)) for x in baseline]
+    median = statistics.median(logs)
+    mad = statistics.median(abs(x - median) for x in logs)
+    scale = max(1.4826 * mad, 0.02, 1e-9)  # at least 2% on the raw scale
     s, start = 0.0, None
     for i, x in enumerate(current):
-        z = min((x - median) / scale, cfg.z_cap)
+        z = min((math.log1p(max(x, 0.0)) - median) / scale, cfg.z_cap)
         nxt = max(0.0, s + z - cfg.k)
         if s == 0.0 and nxt > 0.0:
             start = i
@@ -177,7 +179,7 @@ def shift_up(baseline: Sequence[float], current: Sequence[float], cfg: ShiftConf
         state,
         s,
         cfg.h,
-        round(median, 3),
+        round(statistics.median(baseline), 3),
         round(scale, 3),
         len(baseline),
         round(statistics.median(current), 3),
