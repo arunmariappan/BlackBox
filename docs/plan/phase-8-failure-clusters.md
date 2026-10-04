@@ -62,27 +62,27 @@ The weights and `min_cluster_size` are tuned here, and the result is recorded in
 ## Tasks
 
 ### 8.1 Signatures
-- [ ] Failure rules per profile; facts; run digests; descriptions with the fixed categories and validation.
+- [x] Failure rules per profile; facts; run digests; descriptions with the fixed categories and validation.
 
 ### 8.2 Clustering
-- [ ] Embeddings (`fastembed`, model downloaded once and cached), feature vectors, HDBSCAN, centres and radii.
-- [ ] Cluster naming with evidence validation.
-- [ ] Live assignment on `run_completed`, re-clustering triggers, id matching across re-clusterings.
-- [ ] `blackbox cluster` command.
+- [x] Embeddings (`fastembed`, model downloaded once and cached), feature vectors, HDBSCAN, centres and radii.
+- [x] Cluster naming with evidence validation.
+- [x] Live assignment on `run_completed`, re-clustering triggers, id matching across re-clusterings.
+- [x] `blackbox cluster` command.
 
 ### 8.3 Checking
 - [ ] OpsDesk fault settings and a set of about 40 known failures (scripted plus real, the real ones after you agree on
       the GPU time); adjusted Rand index and cause check; tuning; results recorded here.
 
 ### 8.4 UI
-- [ ] Clusters page, cluster page, run page additions.
+- [x] Clusters page, cluster page, run page additions.
 
 ## Tests
-- [ ] Synthetic vectors with three clear groups and noise: three clusters, noise left unclustered.
-- [ ] Id matching: adding members keeps ids; splitting a cluster keeps the id on the larger part.
-- [ ] Evidence naming a run outside the cluster, or a step that doesn't exist, is dropped.
-- [ ] Assignment within the radius joins; outside stays unclustered; 10 unclustered trigger a re-clustering.
-- [ ] Untrusted judges' `fail` doesn't make a run count as failed.
+- [x] Synthetic vectors with three clear groups and noise: three clusters, noise left unclustered.
+- [x] Id matching: adding members keeps ids; splitting a cluster keeps the id on the larger part.
+- [x] Evidence naming a run outside the cluster, or a step that doesn't exist, is dropped.
+- [x] Assignment within the radius joins; outside stays unclustered; 10 unclustered trigger a re-clustering.
+- [x] Untrusted judges' `fail` doesn't make a run count as failed.
 
 ## Done when
 - [ ] Known OpsDesk failures cluster with an adjusted Rand index of at least 0.6 against their types, and at least 3 of
@@ -90,3 +90,32 @@ The weights and `min_cluster_size` are tuned here, and the result is recorded in
 - [ ] PaperPilot's failures from phase 5 (unsupported claims, wrong scope decisions, maximum attempts) appear as
       named clusters with evidence.
 - [ ] A new failure joins its cluster within a minute of the run completing.
+
+## What was built (2026-10-04)
+
+- `clusters/failures.py` (failure rules, facts, the run digest), `clusters/describe.py` (the description call and
+  its `where_step` check), `clusters/embedding.py`, `clusters/space.py` (feature vectors, HDBSCAN, centres and
+  radii, live assignment, id matching), `clusters/naming.py`, `clusters/service.py`, `clusters/jobs.py`, the
+  `/clusters` and `/clusters/{id}` pages, the run page's failure panel, `blackbox cluster --profile P` and
+  `blackbox cluster-evaluate --profile P` (adjusted Rand index against a `known_failure` run tag). Migration `0003`
+  adds `cluster_spaces`: each profile's one-hot vocabulary, weight and embedder, so a new failure is placed in the
+  same space as the clusters it is compared with.
+- Decisions on details the plan left open:
+  - The worker's `run_completed` job runs the checker, then metrics, then failure detection; a failed run gets a
+    `describe_failure` job on the **model lane** (phase 9 makes the lanes real). When `recluster_after` (10)
+    failures wait unclustered, one `recluster` job is queued; an hourly check re-clusters any profile whose
+    clustering is more than a day old.
+  - The model sees members as `R1`…`R5` rather than ULIDs (easier for a 4B model to copy); evidence naming another
+    label or a step the run doesn't have is dropped and kept in the response for the record.
+  - An invalid description is stored as such (`signature.description_error`), and the failure is embedded from its
+    facts instead; Ollama being down fails the job (retried, then listed), never a silent default.
+  - Clusters that lose all their members in a re-clustering are kept as `retired`; your status (`new`, `known`,
+    `fixed`) survives re-clustering with the id.
+  - `fastembed` is the default embedder; a `hashing` embedder (no model) is for tests and offline machines. The
+    embedder's name is stored with every failure and clustering, and failures embedded with another embedder are
+    left out of a clustering rather than mixed in.
+- **Not done here (needs Ollama and the GPU):** 8.3's 40 known OpsDesk failures under fault settings, tuning the
+  weight and `min_cluster_size` on them, and PaperPilot's clusters. The pipeline is tested end to end with a fake
+  model (`tests/integration/test_clusters_pipeline.py`); `blackbox cluster-evaluate` gives the adjusted Rand index
+  once real runs carry a `known_failure` tag. The model for `fastembed` (about 130 MB) is downloaded on first use
+  into `data/models`; HuggingFace wasn't reachable where this was built, so that download is untested here.

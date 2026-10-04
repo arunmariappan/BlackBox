@@ -44,6 +44,7 @@ uv run opsdesk env    # :8221      uv run opsdesk agent    # :8220        (phase
 uv run blackbox run opsdesk --task fix-01-bad-deploy [--mode chaotic]   # or --all-tasks --repeats 2
 uv run opsdesk tasks list            uv run opsdesk check <sandbox> --task <id>
 uv run blackbox metrics recompute [--profile P]   # after changing a metric module's version (phase 7)
+uv run blackbox cluster --profile opsdesk [--no-names]   # re-cluster failures now (phase 8)
 uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (phase 10)
 ```
 
@@ -95,6 +96,7 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
 - `LLMUnavailable` (Ollama down) is an error, not a verdict; an invalid reply after one retry is stored as `invalid`.
 - OpsDesk end-to-end tests run the environment, the agent and BlackBox in one process with a scripted fake model
   (`tests/integration/test_opsdesk_replay.py`, `Script`); new task behaviour is easiest to test that way.
+- Tests use the `hashing` embedder (`tests/harness.py`); `fastembed` downloads `BAAI/bge-small-en-v1.5` on first use.
 - `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
   aligned comments stay as written.
 - The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one
