@@ -38,6 +38,8 @@ uv run blackbox db prune --older-than 30d # keeps baseline and labelled runs
 uv run blackbox runs export <run> --out <dir>   # run bundle; `runs import <dir>` is idempotent
 uv run blackbox run paperpilot "What are transformer architectures?"     # start a recorded run (phase 2)
 uv run blackbox replay <run> [--from-step N | --auto-fork] [--model M] [--patch FILE]   # phase 4
+uv run blackbox judge run pp_faithfulness --profile paperpilot --last 20   # phase 5; also calibrate, stability
+uv run blackbox run paperpilot --dataset datasets/paperpilot/questions.yaml [--top-k 1] [--limit N]
 uv run opsdesk env    # :8221      uv run opsdesk agent    # :8220        (phase 6)
 uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (phase 10)
 ```
@@ -85,6 +87,9 @@ uv run blackbox regress opsdesk-core --mode replay --spawn   # what CI runs (pha
   sends on purpose.
 - Tests that set `traceparent` by hand must send with `blackbox.net.make_client` once the SDK has instrumented httpx
   in the test process; an ordinary httpx client gets a fresh `traceparent` injected over theirs.
+- Judge prompts live in `src/blackbox/judges/prompts/*.md`; any edit (even one character) makes a new judge version
+  that has to earn trust again. Placeholders are `{name}` for the input builder's fields only.
+- `LLMUnavailable` (Ollama down) is an error, not a verdict; an invalid reply after one retry is stored as `invalid`.
 - `ruff format` also formats Python code blocks inside Markdown; `*.md` is excluded in `pyproject.toml` so the plan's
   aligned comments stay as written.
 - The wheel is built with hatchling (`packages = ["src/blackbox", "src/opsdesk"]`): uv's own build backend takes one

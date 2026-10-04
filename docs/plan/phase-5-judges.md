@@ -99,36 +99,36 @@ the answer got better or worse, not only whether it changed.
 ## Tasks
 
 ### 5.1 Dataset
-- [ ] `blackbox dataset draft paperpilot`: sample papers from OpenSearch, draft questions, write YAML for review.
+- [x] `blackbox dataset draft paperpilot`: sample papers from OpenSearch, draft questions, write YAML for review.
 - [ ] The 50-question file, reviewed by you and committed.
-- [ ] `blackbox run paperpilot --dataset datasets/paperpilot/questions.yaml [--top-k 1] [--limit N]` runs them in
+- [x] `blackbox run paperpilot --dataset datasets/paperpilot/questions.yaml [--top-k 1] [--limit N]` runs them in
       sequence (batches, after you agree).
 
 ### 5.2 Judge framework
-- [ ] Prompt files with front matter, input builders, Pydantic output schemas, versioning.
-- [ ] `blackbox/llm/`: a small Ollama client for BlackBox's own calls: JSON-schema output, validation, one retry,
+- [x] Prompt files with front matter, input builders, Pydantic output schemas, versioning.
+- [x] `blackbox/llm/`: a small Ollama client for BlackBox's own calls: JSON-schema output, validation, one retry,
       timing, `invalid` results.
-- [ ] Judge runner with the `judge_calls` cache; `blackbox judge run <judge> [--runs ... | --profile P --last N]`.
-- [ ] The three PaperPilot judges.
+- [x] Judge runner with the `judge_calls` cache; `blackbox judge run <judge> [--runs ... | --profile P --last N]`.
+- [x] The three PaperPilot judges.
 
 ### 5.3 Labels and agreement
-- [ ] Label page and its keyboard shortcuts, queue order, blind reveal, notes.
-- [ ] `blackbox/judges/agreement.py`: κ (plain and weighted), bootstrap intervals, confusion matrix, precision and
+- [x] Label page and its keyboard shortcuts, queue order, blind reveal, notes.
+- [x] `blackbox/judges/agreement.py`: κ (plain and weighted), bootstrap intervals, confusion matrix, precision and
       recall, held-out split, trust gate.
-- [ ] Judges page: versions, agreement with intervals, confusion matrix, trusted badge, disagreement list linking to
+- [x] Judges page: versions, agreement with intervals, confusion matrix, trusted badge, disagreement list linking to
       runs.
-- [ ] `blackbox judge calibrate`, `blackbox judge stability`, `blackbox labels export`.
+- [x] `blackbox judge calibrate`, `blackbox judge stability`, `blackbox labels export`.
 
 ### 5.4 UI
-- [ ] Runs list: a column per trusted judge. Run page: judge verdicts with rationale and unsupported claims.
+- [x] Runs list: a column per trusted judge. Run page: judge verdicts with rationale and unsupported claims.
 
 ## Tests
-- [ ] κ, weighted κ and the bootstrap interval match hand-computed values on small tables (and scikit-learn's κ).
-- [ ] The held-out split is stable across calls and never changes when labels are added.
-- [ ] Changing one character of a prompt changes the version; an unchanged version hits the cache with no model call.
-- [ ] An invalid model reply is retried once and then stored as `invalid` (fake Ollama).
-- [ ] Input builder: `pp_faithfulness` input contains exactly the excerpts from the run's last search step.
-- [ ] Label page: saving a label reveals the verdict; the verdict isn't in the page before that.
+- [x] κ, weighted κ and the bootstrap interval match hand-computed values on small tables (and scikit-learn's κ).
+- [x] The held-out split is stable across calls and never changes when labels are added.
+- [x] Changing one character of a prompt changes the version; an unchanged version hits the cache with no model call.
+- [x] An invalid model reply is retried once and then stored as `invalid` (fake Ollama).
+- [x] Input builder: `pp_faithfulness` input contains exactly the excerpts from the run's last search step.
+- [x] Label page: saving a label reveals the verdict; the verdict isn't in the page before that.
 
 ## Done when
 - [ ] The 50 questions are committed and their 80 runs are recorded.
@@ -139,3 +139,33 @@ the answer got better or worse, not only whether it changed.
       the work continues.
 - [ ] **MVP complete:** PaperPilot agentic runs are recorded, one replays exactly, and runs are scored by
       `pp_faithfulness`, all visible in the UI.
+
+## What was built (2026-10-04)
+
+- `llm/client.py` (`OllamaJSON`: schema in `format`, `think: false`, temperature 0 by default, Pydantic validation,
+  one retry, then `invalid`; a refused connection or HTTP error raises `LLMUnavailable` instead, so an outage is never
+  stored as a verdict), and `judges/`: `schemas.py`, `inputs.py` (versioned input builders), `framework.py` (prompt
+  files, versions, `applies_when` as a restricted expression), `runner.py` (cache, majority vote, scores),
+  `agreement.py`, `calibrate.py` (calibration, stability, sensitivity), `labels.py`, `replay.py` (judges in fidelity
+  reports). Prompts are in `src/blackbox/judges/prompts/`.
+- Decisions on details the plan left open:
+  - `pp_scope`'s verdict is `should_answer`; its label (`scope_correct`) is pass when that decision agrees with the
+    run's ending (`label_rule: scope_decision`).
+  - The cache key is (judge version, SHA-256 of the input fields). Only valid calls are reused; invalid ones are
+    stored for the audit trail and judged again next time.
+  - The held-out split hashes `heldout:<run id>`; labels and scores are paired by run id.
+  - Judges run from the command line in the CLI process (`blackbox judge run|calibrate|stability|sensitivity|list`),
+    or from the judges page's Calibrate button (which, without Ollama, refreshes agreement from existing scores).
+    Phase 9 adds judging live runs through the job queue.
+  - Fidelity reports judge the source and the replay (`[judges] judge_replays`, default on). An exact replay has the
+    same inputs, so its verdicts come from the cache with no model call.
+  - `judge stability` reports flip rates and says how to switch a judge to a majority vote (`options: {samples: 3}`,
+    sampled at temperature 0.3), rather than editing the prompt file itself.
+  - Keyboard shortcuts on the label page are HTMX triggers (`keyup[key=='p'] from:body`), ignored while typing in a
+    field; `n` swaps in a note field with `autofocus`.
+- `datasets/paperpilot/questions.yaml` holds the 10 out-of-scope questions (reviewed) and 10 not-in-corpus
+  candidates (`status: draft` until checked against the index). **The 30 answerable questions, the 80 runs, your
+  labels, `pp_faithfulness`'s agreement and its sensitivity check need PaperPilot, Ollama and you**, so the four
+  "Done when" items are open. The commands for them exist: `blackbox dataset draft paperpilot`,
+  `blackbox run paperpilot --dataset datasets/paperpilot/questions.yaml [--top-k 1]`, the `/label` page,
+  `blackbox judge calibrate pp_faithfulness`, `blackbox judge sensitivity pp_faithfulness`.
