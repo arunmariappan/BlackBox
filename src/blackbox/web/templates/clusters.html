@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Clusters{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>Failure clusters</h1>
+  {% for p in profiles %}<a class="badge {% if p == profile %}accent{% endif %}" href="/clusters?profile={{ p }}">{{ p }}</a>{% endfor %}
+</div>
+{% if space %}<p class="muted small">Last clustered {{ space.clustered_ms | time }} UTC with {{ space.embedder }} · {{ space.stats.failures }} failures, {{ space.stats.clusters }} clusters, {{ space.stats.unclustered }} unclustered.</p>{% endif %}
+<table>
+  <thead><tr><th>Cluster</th><th class="num">Runs</th><th>New per day (14 days)</th><th>Likely cause</th><th>Suggested fix</th><th>Status</th></tr></thead>
+  <tbody hx-get="/clusters?profile={{ profile }}" hx-select="tbody > tr" hx-swap="innerHTML" hx-trigger="sse:cluster throttle:2s">
+  {% for c in clusters %}
+  <tr>
+    <td><a href="/clusters/{{ c.id }}">{{ c.title or "unnamed" }}</a>{% if c.cause_status and c.cause_status != "supported" %} <span class="badge warn">{{ c.cause_status }}</span>{% endif %}</td>
+    <td class="num">{{ c.size }}</td>
+    <td><span class="spark">{% set peak = [lines[c.id] | max, 1] | max %}{% for v in lines[c.id] %}<i style="height: {{ (v / peak * 100) | round }}%" title="{{ v }}"></i>{% endfor %}</span></td>
+    <td class="small">{{ c.likely_cause or "" }}</td>
+    <td class="small">{{ c.suggested_fix or "" }}</td>
+    <td>
+      <form method="post" action="/clusters/{{ c.id }}/status" class="flex">
+        {% for s in statuses %}<button type="submit" name="status" value="{{ s }}" class="{% if c.status == s %}primary{% endif %}">{{ s }}</button>{% endfor %}
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">No clusters for {{ profile }} yet. Failures are grouped once at least three look alike (or run <code>blackbox cluster --profile {{ profile }}</code>).</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<h2>Unclustered failures ({{ unclustered | length }})</h2>
+<table>
+  <thead><tr><th>Run</th><th>Category</th><th>What went wrong</th></tr></thead>
+  <tbody>
+  {% for f in unclustered[:100] %}<tr><td class="small"><a href="/runs/{{ f.run_id }}">{{ f.run_id[-8:] }}</a></td><td><span class="badge">{{ f.category or "?" }}</span></td><td class="small">{{ f.description or (f.signature.reasons or []) | join("; ") }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

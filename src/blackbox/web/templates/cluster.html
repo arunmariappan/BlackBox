@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ cluster.title or "Cluster" }}{% endblock %}
+{% block content %}
+<div class="flex">
+  <h1>{{ cluster.title or "Unnamed cluster" }}</h1>
+  <span class="badge">{{ cluster.profile }}</span>
+  <form method="post" action="/clusters/{{ cluster.id }}/status" class="right flex">
+    {% for s in statuses %}<button type="submit" name="status" value="{{ s }}" class="{% if cluster.status == s %}primary{% endif %}">{{ s }}</button>{% endfor %}
+  </form>
+</div>
+<div class="grid">
+  <div class="card"><div class="label">Runs</div><div class="value">{{ cluster.size }}</div></div>
+  <div class="card"><div class="label">Since</div><div class="value small">{{ cluster.created_ms | time }}</div></div>
+  <div class="card"><div class="label">Updated</div><div class="value small">{{ cluster.updated_ms | time }}</div></div>
+</div>
+<h2>Likely cause {% if cluster.cause_status %}<span class="badge {{ 'ok' if cluster.cause_status == 'supported' else 'warn' }}">{{ cluster.cause_status }}</span>{% endif %}</h2>
+<p>{{ cluster.likely_cause or "No cause named yet." }}</p>
+{% if cluster.evidence %}
+<h3>Evidence</h3>
+<ul>{% for e in cluster.evidence %}<li><a href="/runs/{{ e.run_id }}{% if e.step %}#step-{{ e.step }}{% endif %}">run {{ e.run_id[-8:] }}{% if e.step %}, step {{ e.step }}{% endif %}</a>: {{ e.observation }}</li>{% endfor %}</ul>
+{% endif %}
+{% if cluster.suggested_fix %}<h3>Suggested fix</h3><p>{{ cluster.suggested_fix }}</p>{% endif %}
+<h2>Members</h2>
+<div class="grid small">
+  {% for title, items in [("endings", stats.endings), ("categories", stats.categories), ("metric flags", stats.flags), ("first problem node", stats.nodes)] %}
+  <div class="card"><div class="label">{{ title }}</div>{% for value, count in items %}<div>{{ (count * 100 / n) | round | int }}% {{ value }}</div>{% else %}<div class="muted">—</div>{% endfor %}</div>
+  {% endfor %}
+</div>
+<table style="margin-top:10px">
+  <thead><tr><th>Run</th><th>Started (UTC)</th><th>Ending</th><th>Category</th><th>What went wrong</th></tr></thead>
+  <tbody>
+  {% for m in members %}{% set r = runs.get(m.run_id) %}
+  <tr><td class="small"><a href="/runs/{{ m.run_id }}{% if m.where_step %}#step-{{ m.where_step }}{% endif %}">{{ m.run_id[-8:] }}</a></td><td class="small">{{ r.started_ms | time if r else "" }}</td><td>{{ r.ending if r else "" }}</td><td><span class="badge">{{ m.category or "?" }}</span></td><td class="small">{{ m.description or "" }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

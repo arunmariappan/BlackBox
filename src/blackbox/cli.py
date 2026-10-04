@@ -755,3 +755,69 @@ def metrics_recompute(
         return len(runs)
 
     console.print(f"recomputed metrics for {run_with_store(go)} runs")
+
+
+@app.command("cluster")
+def cluster_command(
+    profile: Annotated[str, typer.Option("--profile", help="Profile whose failures to cluster.")],
+    no_names: Annotated[bool, typer.Option("--no-names", help="Skip naming clusters (no model calls).")] = False,
+    redescribe: Annotated[bool, typer.Option("--redescribe", help="Describe every failed run again first.")] = False,
+) -> None:
+    """Re-cluster a profile's failures now: HDBSCAN, stable ids, and names with likely causes."""
+    from blackbox.clusters.service import ClusterService
+    from blackbox.services import Services
+
+    async def go() -> dict[str, object]:
+        services = await Services.create(settings())
+        try:
+            assert services.clusters is not None
+            service: ClusterService = services.clusters
+            if redescribe:
+                for run in await services.store.reader.runs(profile=profile, status="complete", limit=100_000):
+                    await service.record(run)
+            return await service.recluster(profile, name=not no_names)
+        finally:
+            await services.close()
+
+    console.print(asyncio.run(go()))
+
+
+@app.command("cluster-evaluate")
+def cluster_evaluate(
+    profile: Annotated[str, typer.Option("--profile")],
+    tag: Annotated[str, typer.Option("--tag", help="Run tag that holds each failure's known type.")] = "known_failure",
+) -> None:
+    """Adjusted Rand index of the clusters against known failure types (run tag), and which causes name their type."""
+    from sklearn.metrics import adjusted_rand_score
+    from sqlalchemy import select
+
+    from blackbox.store.models import Cluster, Failure, Run
+
+    async def go(store: Store) -> None:
+        async with store.read() as s:
+            rows = (
+                await s.execute(
+                    select(Failure, Run).join(Run, Run.id == Failure.run_id).where(Failure.profile == profile)
+                )
+            ).all()
+            clusters = {c.id: c for c in (await s.execute(select(Cluster).where(Cluster.profile == profile))).scalars()}
+        known = [(f, r.tags.get(tag)) for f, r in rows if r.tags.get(tag)]
+        if not known:
+            console.print(f"no failures tagged {tag!r}")
+            raise typer.Exit(1)
+        truth = [str(t) for _, t in known]
+        predicted = [f.cluster_id or f"noise-{f.run_id}" for f, _ in known]
+        console.print(
+            f"adjusted Rand index: {adjusted_rand_score(truth, predicted):.2f} over {len(known)} known failures"
+        )
+        for cluster_id, cluster in clusters.items():
+            types = [t for f, t in known if f.cluster_id == cluster_id]
+            if not types:
+                continue
+            majority = str(max(set(types), key=types.count))
+            text = f"{cluster.title} {cluster.likely_cause}".lower().replace("_", " ")
+            named = majority.replace("_", " ") in text
+            share = f"{types.count(majority)}/{len(types)}"
+            console.print(f"{cluster.title or cluster_id}: mostly {majority} ({share}); cause names it: {named}")
+
+    run_with_store(go)
