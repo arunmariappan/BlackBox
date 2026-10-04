@@ -173,3 +173,18 @@ async def test_judge_report_in_replays_uses_the_cache(store: Store) -> None:
         "change": "same",
     }
     assert len(fake.calls) == 3  # one per judge; the "replay" (identical inputs) came from the cache
+
+
+async def test_task_success_judge_is_calibrated_against_the_checker(store: Store) -> None:
+    from blackbox.judges import calibrate
+    from blackbox.runs.scores import write_score
+    from tests.factories import add_run
+
+    run = await add_run(store, profile="opsdesk", ending="finished")
+    await write_score(store, run.id, kind="checker", name="checker", version="1", label="fail", value=0.0)
+    judge = JUDGES["ops_task_success"]
+    assert judge.agreement_source == "checker"
+    await JudgeRunner(store, FakeOllama(passing).client()).write_score(judge, run.id, "pass", "looks done", {})
+    await JudgeRunner(store, FakeOllama(passing).client()).register(judge)
+    stats = await calibrate.compute(store, judge, judge.version)
+    assert stats["all"]["n"] == 1 and stats["all"]["disagreements"] == [run.id]

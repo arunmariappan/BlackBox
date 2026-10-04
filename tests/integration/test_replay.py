@@ -334,3 +334,18 @@ async def test_replay_command(stack: Stack, tmp_path: Path) -> None:
     )
     assert forked.exit_code == 0, forked.output
     assert forked.output.count("2 live calls") == 2
+
+
+async def test_sdk_clock_replays_exactly_with_the_shims(stack: Stack) -> None:
+    """The prompt holds `sdk.now()` (to the microsecond): the replay gets the recorded value back, no normaliser."""
+    stack.agent.clock = "sdk"
+    source = await record(stack)
+    values = await stack.bb.services.store.reader.recorded_values(source.trace_id)
+    assert [v.kind for v in values] == ["now"] * 4
+    await asyncio.sleep(0.05)
+    report = await replay(stack, source.id)
+    assert report["exact"] is True and "value_divergences" not in report
+    replay_run = await stack.bb.services.store.reader.run(report["replay_run"])
+    assert replay_run is not None
+    replayed = await stack.bb.services.store.reader.recorded_values(replay_run.trace_id)
+    assert [v.value for v in replayed] == [v.value for v in values]  # a replay is itself replayable
