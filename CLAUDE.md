@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BlackBox is a flight recorder for AI agents, written in Python: it records agent runs (spans plus the exact bytes of
 every model and tool response), replays or forks them, scores them with metrics and LLM judges, clusters failures,
-alerts on quality drops, and runs regression suites. **The repo holds only the plan so far.** Read
+alerts on quality drops, and runs regression suites. **Phases 0–9 are built** (tested against fake models and
+agents; their live "Done when" checks wait for this PC's GPU); phase 10 (regression suites and CI) is next. Read
 [docs/plan/README.md](docs/plan/README.md) and the current phase file before working; each phase file has tasks,
-tests and "done when" items to tick, and ends up recording what was actually built.
+tests and "done when" items to tick, and ends with a "What was built" section recording decisions and what is left.
+Keep the README's status and phase table in step when a phase lands.
 
 ## Working rules
 
